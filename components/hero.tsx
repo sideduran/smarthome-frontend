@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 export default function Hero() {
   return (
@@ -17,7 +18,9 @@ export default function Hero() {
               thermostats, and security devices all from one place.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white text-base h-12">Get Started</Button>
+              <Link href="/signup">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white text-base h-12">Get Started</Button>
+              </Link>
             </div>
           </div>
 
