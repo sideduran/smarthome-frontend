@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
 export default function Navigation() {
-  const navLinks = ["Home", "Features", "Devices", "Automations", "Security", "Pricing", "Support"]
+  const navLinks = ["Home", "Devices", "Automations", "Security", "Pricing", "Support"]
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200">
