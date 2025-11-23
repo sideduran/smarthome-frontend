@@ -1,7 +1,14 @@
 "use client"
 
+import Link from "next/link"
+
 export default function Footer() {
-  const footerLinks = ["Features", "Pricing", "Support", "Sign In"]
+  const footerLinks = [
+    { name: "Features", href: "#features" },
+    { name: "Pricing", href: "/pricing" },
+    { name: "Support", href: "#support" },
+    { name: "Sign In", href: "/login" }
+  ]
 
   return (
     <footer className="bg-gradient-to-b from-white to-gray-50 border-t border-gray-200 py-16 px-4 sm:px-6 lg:px-8">
@@ -24,13 +31,13 @@ export default function Footer() {
           {/* Links */}
           <div className="flex gap-8 justify-start md:justify-end">
             {footerLinks.map((link) => (
-              <a
-                key={link}
-                href={`#${link.toLowerCase()}`}
+              <Link
+                key={link.name}
+                href={link.href}
                 className="text-gray-700 hover:text-blue-600 transition-colors text-sm font-medium"
               >
-                {link}
-              </a>
+                {link.name}
+              </Link>
             ))}
           </div>
         </div>
