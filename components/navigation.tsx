@@ -1,5 +1,6 @@
 "use client"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 export default function Navigation() {
   const navLinks = ["Home", "Features", "Devices", "Automations", "Security", "Pricing", "Support"]
@@ -29,12 +30,14 @@ export default function Navigation() {
           {/* Right Side Actions */}
           <div className="flex items-center gap-3">
             <a
-              href="#signin"
+              href="/login"
               className="text-gray-700 hover:text-gray-900 transition-colors text-sm font-medium hidden sm:inline-block"
             >
               Sign In
             </a>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white">Get Started</Button>
+            <Link href="/signup">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white">Get Started</Button>
+            </Link>
           </div>
         </div>
       </div>
