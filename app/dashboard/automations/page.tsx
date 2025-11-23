@@ -165,13 +165,6 @@ export default function AutomationsPage() {
   const [formActionValue, setFormActionValue] = useState<number>(22)
   const [formEnabled, setFormEnabled] = useState(true)
 
-  const getGreeting = () => {
-    const hour = new Date().getHours()
-    if (hour < 12) return "Good morning"
-    if (hour < 18) return "Good afternoon"
-    return "Good evening"
-  }
-
   // Filter automations
   const filteredAutomations = automations.filter((automation) => {
     if (filter === "enabled") return automation.enabled
@@ -307,7 +300,7 @@ export default function AutomationsPage() {
   return (
     <div className="min-h-screen">
       {/* Top Bar */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30 backdrop-blur-sm bg-white/95">
+      <header className="border-b border-gray-200 sticky top-0 z-30 backdrop-blur-sm bg-white/95">
         <div className="px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="pl-12 lg:pl-0 animate-in fade-in slide-in-from-left-4 duration-500">
             <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Automations</h1>
@@ -315,7 +308,7 @@ export default function AutomationsPage() {
               Create and manage your smart home routines
             </p>
           </div>
-          <Avatar className="w-9 h-9 sm:w-10 sm:h-10 cursor-pointer hover:ring-4 hover:ring-blue-100 transition-all duration-300 hover:scale-110 animate-in fade-in zoom-in-50 duration-500">
+          <Avatar className="w-9 h-9 sm:w-10 sm:h-10 cursor-pointer hover:ring-4 hover:ring-blue-100 transition-all hover:scale-110 animate-in fade-in zoom-in-50 duration-500">
             <AvatarFallback className="bg-blue-600 text-white font-medium text-sm">
               AX
             </AvatarFallback>
@@ -396,7 +389,7 @@ export default function AutomationsPage() {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 flex-1 min-w-0">
-                      <div className="p-2 rounded-lg bg-blue-50 flex-shrink-0 transition-all duration-300 hover:scale-110">
+                      <div className="p-2 rounded-lg bg-blue-50 shrink-0 transition-all duration-300 hover:scale-110">
                         <Clock className="w-5 h-5 text-blue-600" />
                       </div>
                       <div className="flex-1 min-w-0">
