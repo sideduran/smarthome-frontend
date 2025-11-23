@@ -3,7 +3,10 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
 export default function Navigation() {
-  const navLinks = ["Pricing", "Support"]
+  const navLinks = [
+    { name: "Pricing", href: "/pricing" },
+    { name: "Support", href: "#support" }
+  ]
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200">
@@ -11,19 +14,19 @@ export default function Navigation() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <span className="text-xl font-semibold text-gray-900">Smart Home</span>
+            <Link href="/" className="text-xl font-semibold text-gray-900">Smart Home</Link>
           </div>
 
           {/* Navigation Links - Hidden on Mobile */}
           <div className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
-              <a
-                key={link}
-                href={`#${link.toLowerCase()}`}
+              <Link
+                key={link.name}
+                href={link.href}
                 className="text-gray-700 hover:text-gray-900 transition-colors text-sm font-medium"
               >
-                {link}
-              </a>
+                {link.name}
+              </Link>
             ))}
           </div>
 
