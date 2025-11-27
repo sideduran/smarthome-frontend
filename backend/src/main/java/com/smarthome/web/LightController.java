@@ -39,7 +39,8 @@ public class LightController {
 
     @PostMapping
     public ResponseEntity<Light> createLight(@RequestBody CreateLightRequest request) {
-        Light light = createLightFromRequest(request);
+        Light light = new Light(request.getId(), request.getName());
+        applyRequest(light, request);
         mediator.createDevice(light);
         return ResponseEntity.status(HttpStatus.CREATED).body(light);
     }
@@ -50,9 +51,10 @@ public class LightController {
         if (existing.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        
-        Light light = createLightFromRequest(request);
-        light.setId(id); // Ensure ID matches path
+
+        Light light = existing.get();
+        light.setName(request.getName());
+        applyRequest(light, request);
         mediator.updateDevice(light);
         return ResponseEntity.ok(light);
     }
@@ -79,12 +81,10 @@ public class LightController {
 
     // --- Helper method ---
 
-    private Light createLightFromRequest(CreateLightRequest request) {
-        Light light = new Light(request.getId(), request.getName(), request.isOnline(), request.getRoomId());
-        if (request.getBrightness() != null) {
-            light.setBrightness(request.getBrightness());
+    private void applyRequest(Light light, CreateLightRequest request) {
+        if (request.getOn() != null) {
+            light.setOn(request.getOn());
         }
-        return light;
     }
 }
 

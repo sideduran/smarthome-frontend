@@ -105,7 +105,7 @@ public class ThermostatController {
     // --- Helper method ---
 
     private Thermostat createThermostatFromRequest(CreateThermostatRequest request) {
-        Thermostat thermostat = new Thermostat(request.getId(), request.getName(), request.isOnline(), request.getRoomId());
+        Thermostat thermostat = new Thermostat(request.getId(), request.getName());
         if (request.getCurrentTemperature() != null) {
             thermostat.setCurrentTemperature(request.getCurrentTemperature());
         }

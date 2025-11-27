@@ -39,7 +39,8 @@ public class LockController {
 
     @PostMapping
     public ResponseEntity<Lock> createLock(@RequestBody CreateLockRequest request) {
-        Lock lock = createLockFromRequest(request);
+        Lock lock = new Lock(request.getId(), request.getName(), true);
+        applyRequest(lock, request);
         mediator.createDevice(lock);
         return ResponseEntity.status(HttpStatus.CREATED).body(lock);
     }
@@ -50,9 +51,10 @@ public class LockController {
         if (existing.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        
-        Lock lock = createLockFromRequest(request);
-        lock.setId(id); // Ensure ID matches path
+
+        Lock lock = existing.get();
+        lock.setName(request.getName());
+        applyRequest(lock, request);
         mediator.updateDevice(lock);
         return ResponseEntity.ok(lock);
     }
@@ -79,12 +81,10 @@ public class LockController {
 
     // --- Helper method ---
 
-    private Lock createLockFromRequest(CreateLockRequest request) {
-        Lock lock = new Lock(request.getId(), request.getName(), request.isOnline(), request.getRoomId());
+    private void applyRequest(Lock lock, CreateLockRequest request) {
         if (request.getLocked() != null) {
             lock.setLocked(request.getLocked());
         }
-        return lock;
     }
 }
 

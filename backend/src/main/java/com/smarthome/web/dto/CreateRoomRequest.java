@@ -1,14 +1,14 @@
 package com.smarthome.web.dto;
 
 /**
- * DTO for creating Lock devices.
+ * DTO for creating or updating Room entities without device IDs.
  */
-public class CreateLockRequest {
+public class CreateRoomRequest {
     private String id;
     private String name;
-    private Boolean locked; // Lock status (true = locked, false = unlocked)
+    private String description;
 
-    public CreateLockRequest() {
+    public CreateRoomRequest() {
     }
 
     public String getId() {
@@ -27,12 +27,13 @@ public class CreateLockRequest {
         this.name = name;
     }
 
-    public Boolean getLocked() {
-        return locked;
+    public String getDescription() {
+        return description;
     }
 
-    public void setLocked(Boolean locked) {
-        this.locked = locked;
+    public void setDescription(String description) {
+        this.description = description;
     }
 }
+
 

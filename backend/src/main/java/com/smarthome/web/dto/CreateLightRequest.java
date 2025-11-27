@@ -6,9 +6,7 @@ package com.smarthome.web.dto;
 public class CreateLightRequest {
     private String id;
     private String name;
-    private boolean online;
-    private String roomId;
-    private Integer brightness; // Brightness level from 0 to 100
+    private Boolean on; // Whether the light starts on/off
 
     public CreateLightRequest() {
     }
@@ -29,28 +27,12 @@ public class CreateLightRequest {
         this.name = name;
     }
 
-    public boolean isOnline() {
-        return online;
+    public Boolean getOn() {
+        return on;
     }
 
-    public void setOnline(boolean online) {
-        this.online = online;
-    }
-
-    public String getRoomId() {
-        return roomId;
-    }
-
-    public void setRoomId(String roomId) {
-        this.roomId = roomId;
-    }
-
-    public Integer getBrightness() {
-        return brightness;
-    }
-
-    public void setBrightness(Integer brightness) {
-        this.brightness = brightness;
+    public void setOn(Boolean on) {
+        this.on = on;
     }
 }
 

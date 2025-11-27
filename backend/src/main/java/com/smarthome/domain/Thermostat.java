@@ -10,23 +10,19 @@ package com.smarthome.domain;
 public class Thermostat extends Device {
     private static final double MIN_TARGET_TEMPERATURE = 16.0; // Minimum target temperature in Celsius
     private static final double MAX_TARGET_TEMPERATURE = 30.0; // Maximum target temperature in Celsius
-    
+
     private double currentTemperature; // Current room temperature
     private double targetTemperature; // Desired temperature setpoint (16-30°C)
 
     public Thermostat() {
         super();
         this.setType("thermostat");
-    }
-
-    public Thermostat(String id, String name, boolean online) {
-        super(id, name, "thermostat", online);
         this.currentTemperature = 20.0;
         this.targetTemperature = 22.0;
     }
 
-    public Thermostat(String id, String name, boolean online, String roomId) {
-        super(id, name, "thermostat", online, roomId);
+    public Thermostat(String id, String name) {
+        super(id, name, "thermostat", true);
         this.currentTemperature = 20.0;
         this.targetTemperature = 22.0;
     }

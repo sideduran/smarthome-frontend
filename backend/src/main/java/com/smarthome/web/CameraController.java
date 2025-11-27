@@ -39,7 +39,8 @@ public class CameraController {
 
     @PostMapping
     public ResponseEntity<Camera> createCamera(@RequestBody CreateCameraRequest request) {
-        Camera camera = createCameraFromRequest(request);
+        Camera camera = new Camera(request.getId(), request.getName(), true);
+        applyRequest(camera, request);
         mediator.createDevice(camera);
         return ResponseEntity.status(HttpStatus.CREATED).body(camera);
     }
@@ -50,9 +51,10 @@ public class CameraController {
         if (existing.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        
-        Camera camera = createCameraFromRequest(request);
-        camera.setId(id); // Ensure ID matches path
+
+        Camera camera = existing.get();
+        camera.setName(request.getName());
+        applyRequest(camera, request);
         mediator.updateDevice(camera);
         return ResponseEntity.ok(camera);
     }
@@ -63,20 +65,26 @@ public class CameraController {
         return deleted ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }
 
-    // Camera-specific endpoints can be added here in the future
-    // For example: start/stop recording, get stream URL, etc.
+    // --- Camera-specific Operations ---
+
+    @PostMapping("/{id}/start-recording")
+    public ResponseEntity<Void> startRecording(@PathVariable("id") String id) {
+        mediator.startRecording(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/stop-recording")
+    public ResponseEntity<Void> stopRecording(@PathVariable("id") String id) {
+        mediator.stopRecording(id);
+        return ResponseEntity.noContent().build();
+    }
 
     // --- Helper method ---
 
-    private Camera createCameraFromRequest(CreateCameraRequest request) {
-        Camera camera = new Camera(request.getId(), request.getName(), request.isOnline(), request.getRoomId());
+    private void applyRequest(Camera camera, CreateCameraRequest request) {
         if (request.getRecording() != null) {
             camera.setRecording(request.getRecording());
         }
-        if (request.getStreamUrl() != null) {
-            camera.setStreamUrl(request.getStreamUrl());
-        }
-        return camera;
     }
 }
 

@@ -47,10 +47,10 @@ public class InMemoryStateStore {
         rooms.put(kitchen.getId(), kitchen);
 
         // Create devices using inheritance (Thermostat, Light, Lock, Camera extend Device)
-        Light livingRoomLight = new Light("light-1", "Living Room Light", true, livingRoom.getId());
-        Light bedroomLight = new Light("light-2", "Bedroom Light", true, bedroom.getId());
-        Thermostat livingRoomThermostat = new Thermostat("thermostat-1", "Living Room Thermostat", true, livingRoom.getId());
-        Thermostat bedroomThermostat = new Thermostat("thermostat-2", "Bedroom Thermostat", true, bedroom.getId());
+        Light livingRoomLight = new Light("light-1", "Living Room Light");
+        Light bedroomLight = new Light("light-2", "Bedroom Light");
+        Thermostat livingRoomThermostat = new Thermostat("thermostat-1", "Living Room Thermostat");
+        Thermostat bedroomThermostat = new Thermostat("thermostat-2", "Bedroom Thermostat");
         Lock frontDoorLock = new Lock("lock-1", "Front Door Lock", true, livingRoom.getId());
         Lock bedroomLock = new Lock("lock-2", "Bedroom Door Lock", true, bedroom.getId());
         Camera livingRoomCamera = new Camera("camera-1", "Living Room Camera", true, livingRoom.getId());

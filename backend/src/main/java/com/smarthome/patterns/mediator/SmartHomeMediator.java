@@ -156,6 +156,27 @@ public class SmartHomeMediator {
                 .map(device -> (Camera) device);
     }
 
+    public void startRecording(String deviceId) {
+        SmartHomeCommand command = new StartRecordingCommand(deviceId);
+        command.execute();
+    }
+
+    public void stopRecording(String deviceId) {
+        SmartHomeCommand command = new StopRecordingCommand(deviceId);
+        command.execute();
+    }
+
+    public boolean assignDeviceToRoom(String deviceId, String roomId) {
+        Optional<Device> device = store.getDevice(deviceId);
+        Optional<Room> room = store.getRoom(roomId);
+        if (device.isPresent() && room.isPresent()) {
+            SmartHomeCommand command = new AssignDeviceToRoomCommand(deviceId, roomId);
+            command.execute();
+            return true;
+        }
+        return false;
+    }
+
     // --- Room CRUD operations ---
 
     public Collection<Room> listRooms() {

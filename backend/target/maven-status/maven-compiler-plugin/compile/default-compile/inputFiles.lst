@@ -7,6 +7,7 @@ C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smar
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\domain\Scene.java
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\domain\Thermostat.java
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\patterns\commands\ActivateSceneCommand.java
+C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\patterns\commands\AssignDeviceToRoomCommand.java
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\patterns\commands\CreateDeviceCommand.java
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\patterns\commands\CreateRoomCommand.java
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\patterns\commands\CreateSceneCommand.java
@@ -18,6 +19,8 @@ C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smar
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\patterns\commands\LockCommand.java
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\patterns\commands\SetTargetHeatCommand.java
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\patterns\commands\SmartHomeCommand.java
+C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\patterns\commands\StartRecordingCommand.java
+C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\patterns\commands\StopRecordingCommand.java
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\patterns\commands\ToggleDeviceCommand.java
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\patterns\commands\TurnOffLightCommand.java
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\patterns\commands\TurnOnLightCommand.java
@@ -32,6 +35,7 @@ C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smar
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\web\dto\CreateDeviceRequest.java
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\web\dto\CreateLightRequest.java
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\web\dto\CreateLockRequest.java
+C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\web\dto\CreateRoomRequest.java
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\web\dto\CreateThermostatRequest.java
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\web\dto\SetTargetHeatRequest.java
 C:\Users\baturdincer\Documents\smarthome-frontend\backend\src\main\java\com\smarthome\web\dto\TemperatureAdjustmentRequest.java
