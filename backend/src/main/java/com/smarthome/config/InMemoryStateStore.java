@@ -51,10 +51,10 @@ public class InMemoryStateStore {
         Light bedroomLight = new Light("light-2", "Bedroom Light");
         Thermostat livingRoomThermostat = new Thermostat("thermostat-1", "Living Room Thermostat");
         Thermostat bedroomThermostat = new Thermostat("thermostat-2", "Bedroom Thermostat");
-        Lock frontDoorLock = new Lock("lock-1", "Front Door Lock", true, livingRoom.getId());
+        Lock frontDoorLock = new Lock("lock-1", "Living Room Door Lock", true, livingRoom.getId());
         Lock bedroomLock = new Lock("lock-2", "Bedroom Door Lock", true, bedroom.getId());
         Camera livingRoomCamera = new Camera("camera-1", "Living Room Camera", true, livingRoom.getId());
-        Camera kitchenCamera = new Camera("camera-2", "Kitchen Camera", false, kitchen.getId());
+        Camera kitchenCamera = new Camera("camera-2", "Kitchen Camera", true, kitchen.getId());
 
         // Store devices
         devices.put(livingRoomLight.getId(), livingRoomLight);
