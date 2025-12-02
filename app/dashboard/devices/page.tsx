@@ -33,6 +33,7 @@ import {
   WifiOff,
   Plus,
   Search,
+  Trash2,
 } from "lucide-react"
 
 // Device type definitions
@@ -49,6 +50,7 @@ interface Device {
   temperature?: number
   targetTemperature?: number
   isLocked?: boolean
+  isRecording?: boolean
 }
 
 const deviceTypes = ["All", "Lights", "Thermostats", "Security"]
@@ -64,6 +66,7 @@ const deviceIcons = {
 export default function DevicesPage() {
   const [devices, setDevices] = useState<Device[]>([])
   const [rooms, setRooms] = useState<string[]>(["All rooms"])
+  const [roomList, setRoomList] = useState<{id: string, name: string}[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedRoom, setSelectedRoom] = useState("All rooms")
   const [selectedType, setSelectedType] = useState("All")
@@ -87,6 +90,7 @@ export default function DevicesPage() {
 
         const devicesData = await devicesRes.json();
         const roomsData = await roomsRes.json();
+        setRoomList(roomsData);
 
         // Map rooms to names dictionary
         const roomMap: Record<string, string> = {};
@@ -110,7 +114,8 @@ export default function DevicesPage() {
           isOn: d.on,
           temperature: d.currentTemperature,
           targetTemperature: d.targetTemperature,
-          isLocked: d.locked
+          isLocked: d.locked,
+          isRecording: d.recording
         }));
 
         setDevices(mappedDevices);
@@ -205,11 +210,37 @@ export default function DevicesPage() {
     }
   }
 
-  const handleAddDevice = () => {
+  const handleAddDevice = async () => {
     if (!newDeviceName.trim()) return
     
+    const id = Date.now().toString()
+    
+    // Prepare API body and endpoint
+    let endpoint = ""
+    let body: any = { id, name: newDeviceName }
+
+    switch (newDeviceType) {
+      case "light":
+        endpoint = "lights"
+        body.on = false
+        break
+      case "thermostat":
+        endpoint = "thermostats"
+        body.currentTemperature = 21
+        body.targetTemperature = 21
+        break
+      case "lock":
+        endpoint = "locks"
+        body.locked = false
+        break
+      case "camera":
+        endpoint = "cameras"
+        body.recording = true
+        break
+    }
+
     const newDevice: Device = {
-      id: Date.now().toString(),
+      id,
       name: newDeviceName,
       type: newDeviceType,
       room: newDeviceRoom,
@@ -217,7 +248,7 @@ export default function DevicesPage() {
       ...(newDeviceType === "light" && { isOn: false }),
       ...(newDeviceType === "thermostat" && { temperature: 21, targetTemperature: 21 }),
       ...(newDeviceType === "lock" && { isLocked: false }),
-      ...(newDeviceType === "camera" && { isOn: true }),
+      ...(newDeviceType === "camera" && { isOn: true, isRecording: true }),
     }
 
     setDevices((prev) => [...prev, newDevice])
@@ -225,6 +256,60 @@ export default function DevicesPage() {
     setNewDeviceName("")
     setNewDeviceType("light")
     setNewDeviceRoom("Living Room")
+
+    try {
+        // 1. Create Device
+        const res = await fetch(`http://localhost:8080/api/${endpoint}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+        
+        if (!res.ok) throw new Error("Failed to create device");
+
+        // 2. Assign to Room
+        if (newDeviceRoom && newDeviceRoom !== "All rooms") {
+            const roomObj = roomList.find(r => r.name === newDeviceRoom);
+            if (roomObj) {
+                await fetch(`http://localhost:8080/api/rooms/${roomObj.id}/devices/${id}`, {
+                    method: "POST"
+                });
+            }
+        }
+    } catch (error) {
+        console.error("Failed to add device:", error);
+        // Could revert state here
+    }
+  }
+
+  const handleDeleteDevice = async (deviceId: string, type: DeviceType) => {
+    setDevices((prev) => prev.filter(d => d.id !== deviceId));
+    
+    try {
+        const endpoint = type === "light" ? "lights" : type + "s";
+        await fetch(`http://localhost:8080/api/${endpoint}/${deviceId}`, {
+            method: "DELETE"
+        });
+    } catch (error) {
+        console.error("Failed to delete device:", error);
+    }
+  }
+
+  const toggleCameraRecording = async (deviceId: string, isRecording: boolean) => {
+    setDevices((prev) =>
+      prev.map((d) =>
+        d.id === deviceId ? { ...d, isRecording: !isRecording } : d
+      )
+    )
+
+    try {
+        const action = !isRecording ? "start-recording" : "stop-recording";
+        await fetch(`http://localhost:8080/api/cameras/${deviceId}/${action}`, {
+            method: "POST"
+        });
+    } catch (error) {
+        console.error("Failed to toggle camera recording:", error);
+    }
   }
 
   // Group devices by room
@@ -483,6 +568,14 @@ export default function DevicesPage() {
                                   </div>
                                 </div>
                               </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                onClick={() => handleDeleteDevice(device.id, device.type)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </CardHeader>
 
@@ -548,15 +641,11 @@ export default function DevicesPage() {
                             {device.type === "camera" && (
                               <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                                 <span className="text-sm text-gray-700">Recording</span>
-                                <Badge
-                                  className={`${
-                                    device.isOn
-                                      ? "bg-red-50 text-red-700 border-red-200"
-                                      : "bg-gray-50 text-gray-600"
-                                  }`}
-                                >
-                                  {device.isOn ? "Active" : "Inactive"}
-                                </Badge>
+                                <Switch
+                                  checked={device.isRecording}
+                                  onCheckedChange={() => toggleCameraRecording(device.id, !!device.isRecording)}
+                                  disabled={device.status === "offline"}
+                                />
                               </div>
                             )}
                           </CardContent>

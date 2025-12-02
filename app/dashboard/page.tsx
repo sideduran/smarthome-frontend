@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Switch } from "@/components/ui/switch"
@@ -15,77 +15,54 @@ import {
   Clock
 } from "lucide-react"
 
-// Mock data
-const stats = [
-  {
-    title: "Devices",
-    value: "24 devices",
-    subtitle: "21 online",
-    icon: Wifi,
-    iconColor: "text-green-600",
-    pulse: false,
-  },
-  {
-    title: "Lights",
-    value: "8 lights on",
-    subtitle: "16 lights total",
-    icon: Lightbulb,
-    iconColor: "text-yellow-500",
-    pulse: false,
-  },
-  {
-    title: "Climate",
-    value: "22°C",
-    subtitle: "Average temperature",
-    icon: Thermometer,
-    iconColor: "text-blue-600",
-    pulse: false,
-  },
-  {
-    title: "Security",
-    value: "Armed",
-    subtitle: "All zones active",
-    icon: Shield,
-    iconColor: "text-red-600",
-    pulse: true,
-  },
-]
+// Types matching Backend DTOs
+interface Room {
+  id: string
+  name: string
+  description: string
+  deviceIds: string[]
+}
 
-const initialRooms = [
-  {
-    id: "living-room",
-    name: "Living Room",
-    devices: 8,
-    activeDevices: 5,
-    lightOn: true,
-    temperature: "23°C",
-  },
-  {
-    id: "bedroom",
-    name: "Bedroom",
-    devices: 6,
-    activeDevices: 2,
-    lightOn: false,
-    temperature: "21°C",
-  },
-  {
-    id: "kitchen",
-    name: "Kitchen",
-    devices: 5,
-    activeDevices: 3,
-    lightOn: true,
-    temperature: "22°C",
-  },
-  {
-    id: "entrance",
-    name: "Entrance",
-    devices: 5,
-    activeDevices: 4,
-    lightOn: true,
-    temperature: "20°C",
-  },
-]
+interface Device {
+  id: string
+  name: string
+  type: string
+  online: boolean
+  on: boolean
+  roomId: string
+  currentTemperature?: number // For thermostats
+}
 
+// Stats interface for state
+interface DashboardStats {
+  totalDevices: number
+  onlineDevices: number
+  lightsOn: number
+  totalLights: number
+  avgTemperature: number
+  securityStatus: string
+}
+
+// Room display interface
+interface RoomDisplay {
+  id: string
+  name: string
+  devices: number
+  activeDevices: number
+  lightOn: boolean
+  temperature: string
+}
+
+const initialStats: DashboardStats = {
+  totalDevices: 0,
+  onlineDevices: 0,
+  lightsOn: 0,
+  totalLights: 0,
+  avgTemperature: 0,
+  securityStatus: "Disarmed"
+}
+
+// Mock data for static parts
 const automations = [
   { time: "22:00", description: "Turn off all lights in Living Room" },
   { time: "06:30", description: "Turn on lights in Bedroom" },
@@ -110,18 +87,104 @@ const getGreeting = () => {
 }
 
 export default function DashboardPage() {
-  const [rooms, setRooms] = useState(initialRooms)
+  const [rooms, setRooms] = useState<RoomDisplay[]>([])
+  const [stats, setStats] = useState<DashboardStats>(initialStats)
   const [isAnimating, setIsAnimating] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  const toggleRoomLight = (roomId: string) => {
+  // Fetch data from backend
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [roomsRes, devicesRes] = await Promise.all([
+          fetch('http://localhost:8080/api/rooms'),
+          fetch('http://localhost:8080/api/devices')
+        ])
+
+        if (!roomsRes.ok || !devicesRes.ok) throw new Error("Failed to fetch data")
+
+        const roomsData: Room[] = await roomsRes.json()
+        const devicesData: Device[] = await devicesRes.json()
+
+        // Calculate Stats
+        const totalDevices = devicesData.length
+        const onlineDevices = devicesData.filter(d => d.online).length
+        const lights = devicesData.filter(d => d.type === 'light')
+        const lightsOn = lights.filter(d => d.on).length
+        
+        // Calculate Average Temperature
+        const thermostats = devicesData.filter(d => d.type === 'thermostat')
+        let avgTemp = 0
+        if (thermostats.length > 0) {
+          const sumTemp = thermostats.reduce((acc, curr) => acc + (curr.currentTemperature || 0), 0)
+          avgTemp = Math.round(sumTemp / thermostats.length)
+        }
+
+        setStats({
+          totalDevices,
+          onlineDevices,
+          lightsOn,
+          totalLights: lights.length,
+          avgTemperature: avgTemp,
+          securityStatus: "Armed" // Mock for now, or fetch from a global setting
+        })
+
+        // Map Rooms to Display format
+        const roomsDisplay: RoomDisplay[] = roomsData.map(room => {
+          // Find devices in this room
+          const roomDevices = devicesData.filter(d => d.roomId === room.id)
+          
+          // Calculate active devices (online and on)
+          const activeCount = roomDevices.filter(d => d.online && d.on).length
+          
+          // Check if any light is on in the room
+          const isAnyLightOn = roomDevices.some(d => d.type === 'light' && d.on)
+          
+          // Calculate room temperature (average of thermostats in room, or general average if none)
+          const roomThermostats = roomDevices.filter(d => d.type === 'thermostat')
+          let roomTemp = "N/A"
+          if (roomThermostats.length > 0) {
+             const sum = roomThermostats.reduce((acc, curr) => acc + (curr.currentTemperature || 0), 0)
+             roomTemp = `${Math.round(sum / roomThermostats.length)}°C`
+          } else if (avgTemp > 0) {
+            // Fallback to house average if no thermostat in room, or just hide
+            roomTemp = "-" 
+          }
+
+          return {
+            id: room.id,
+            name: room.name,
+            devices: roomDevices.length,
+            activeDevices: activeCount,
+            lightOn: isAnyLightOn,
+            temperature: roomTemp
+          }
+        })
+
+        setRooms(roomsDisplay)
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  const toggleRoomLight = async (roomId: string) => {
     setIsAnimating(roomId)
     setTimeout(() => setIsAnimating(null), 500)
     
+    // Optimistic update
     setRooms(prevRooms =>
       prevRooms.map(room =>
         room.id === roomId ? { ...room, lightOn: !room.lightOn } : room
       )
     )
+
+    // Note: To implement this properly with backend, we would need to find all lights in the room
+    // and send toggle commands for each. For now, it's visual only as requested.
   }
 
   return (
@@ -147,86 +210,146 @@ export default function DashboardPage() {
         <section className="mb-6 sm:mb-8">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 animate-in fade-in slide-in-from-left-4 duration-500">Overview</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {stats.map((stat, index) => {
-              const Icon = stat.icon
-              return (
-                <Card 
-                  key={stat.title} 
-                  className="bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer group animate-in fade-in slide-in-from-bottom-4"
-                  style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'backwards' }}
-                >
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs sm:text-sm text-gray-600 mb-1 transition-colors group-hover:text-gray-900">{stat.title}</p>
-                        <p className="text-xl sm:text-2xl font-semibold text-gray-900 truncate">{stat.value}</p>
-                        <p className="text-xs text-gray-500 mt-1">{stat.subtitle}</p>
-                      </div>
-                      <div className={`p-2 rounded-lg bg-gray-50 ${stat.iconColor} flex-shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 relative`}>
-                        <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${stat.pulse ? 'animate-pulse' : ''}`} />
-                        {stat.pulse && (
-                          <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
+            {/* Devices Card */}
+            <Card 
+              className="bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer group animate-in fade-in slide-in-from-bottom-4"
+              style={{ animationDelay: '0ms', animationFillMode: 'backwards' }}
+            >
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1 transition-colors group-hover:text-gray-900">Devices</p>
+                    <p className="text-xl sm:text-2xl font-semibold text-gray-900 truncate">{stats.totalDevices} devices</p>
+                    <p className="text-xs text-gray-500 mt-1">{stats.onlineDevices} online</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-gray-50 text-green-600 flex-shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 relative">
+                    <Wifi className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Lights Card */}
+            <Card 
+              className="bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer group animate-in fade-in slide-in-from-bottom-4"
+              style={{ animationDelay: '100ms', animationFillMode: 'backwards' }}
+            >
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1 transition-colors group-hover:text-gray-900">Lights</p>
+                    <p className="text-xl sm:text-2xl font-semibold text-gray-900 truncate">{stats.lightsOn} lights on</p>
+                    <p className="text-xs text-gray-500 mt-1">{stats.totalLights} lights total</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-gray-50 text-yellow-500 flex-shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 relative">
+                    <Lightbulb className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Climate Card */}
+            <Card 
+              className="bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer group animate-in fade-in slide-in-from-bottom-4"
+              style={{ animationDelay: '200ms', animationFillMode: 'backwards' }}
+            >
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1 transition-colors group-hover:text-gray-900">Climate</p>
+                    <p className="text-xl sm:text-2xl font-semibold text-gray-900 truncate">{stats.avgTemperature > 0 ? `${stats.avgTemperature}°C` : '--'}</p>
+                    <p className="text-xs text-gray-500 mt-1">Average temperature</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-gray-50 text-blue-600 flex-shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 relative">
+                    <Thermometer className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+             {/* Security Card */}
+             <Card 
+              className="bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer group animate-in fade-in slide-in-from-bottom-4"
+              style={{ animationDelay: '300ms', animationFillMode: 'backwards' }}
+            >
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm text-gray-600 mb-1 transition-colors group-hover:text-gray-900">Security</p>
+                    <p className="text-xl sm:text-2xl font-semibold text-gray-900 truncate">{stats.securityStatus}</p>
+                    <p className="text-xs text-gray-500 mt-1">System status</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-gray-50 text-red-600 flex-shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 relative">
+                    <Shield className="w-4 h-4 sm:w-5 sm:h-5 animate-pulse" />
+                     <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                      </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </section>
 
         {/* Rooms Overview */}
         <section className="mb-6 sm:mb-8">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 animate-in fade-in slide-in-from-left-4 duration-500" style={{ animationDelay: '200ms' }}>Rooms</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
-            {rooms.map((room, index) => (
-              <Card 
-                key={room.id} 
-                className={`bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-bottom-4 ${
-                  isAnimating === room.id ? 'ring-2 ring-blue-400 scale-[1.02]' : ''
-                }`}
-                style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'backwards' }}
-              >
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
-                    <Home className="w-4 h-4 text-gray-500 flex-shrink-0 transition-transform hover:scale-110" />
-                    <span className="truncate">{room.name}</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 sm:space-y-4">
-                  <div className="transition-all duration-300">
-                    <p className="text-xs sm:text-sm text-gray-600">
-                      {room.devices} devices · {room.activeDevices} on
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Temperature: {room.temperature}
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <Lightbulb 
-                        className={`w-4 h-4 flex-shrink-0 transition-all duration-500 ${
-                          room.lightOn 
-                            ? "text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]" 
-                            : "text-gray-400"
-                        } ${isAnimating === room.id ? 'scale-125 rotate-12' : ''}`} 
-                      />
-                      <span className="text-xs sm:text-sm text-gray-700">Lights</span>
+          {isLoading ? (
+            <div className="flex items-center justify-center p-8">
+              <p className="text-gray-500">Loading rooms...</p>
+            </div>
+          ) : rooms.length === 0 ? (
+             <div className="flex items-center justify-center p-8 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+              <p className="text-gray-500">No rooms found. Add rooms in the backend config.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+              {rooms.map((room, index) => (
+                <Card 
+                  key={room.id} 
+                  className={`bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-bottom-4 ${
+                    isAnimating === room.id ? 'ring-2 ring-blue-400 scale-[1.02]' : ''
+                  }`}
+                  style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'backwards' }}
+                >
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                      <Home className="w-4 h-4 text-gray-500 flex-shrink-0 transition-transform hover:scale-110" />
+                      <span className="truncate">{room.name}</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 sm:space-y-4">
+                    <div className="transition-all duration-300">
+                      <p className="text-xs sm:text-sm text-gray-600">
+                        {room.devices} devices · {room.activeDevices} active
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Temperature: {room.temperature}
+                      </p>
                     </div>
-                    <Switch 
-                      checked={room.lightOn} 
-                      onCheckedChange={() => toggleRoomLight(room.id)}
-                      className="transition-all duration-300"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                      <div className="flex items-center gap-2">
+                        <Lightbulb 
+                          className={`w-4 h-4 flex-shrink-0 transition-all duration-500 ${
+                            room.lightOn 
+                              ? "text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]" 
+                              : "text-gray-400"
+                          } ${isAnimating === room.id ? 'scale-125 rotate-12' : ''}`} 
+                        />
+                        <span className="text-xs sm:text-sm text-gray-700">Lights</span>
+                      </div>
+                      <Switch 
+                        checked={room.lightOn} 
+                        onCheckedChange={() => toggleRoomLight(room.id)}
+                        className="transition-all duration-300"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
@@ -289,4 +412,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
