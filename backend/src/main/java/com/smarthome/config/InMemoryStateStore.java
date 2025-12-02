@@ -36,6 +36,7 @@ public class InMemoryStateStore {
     private final Map<String, Device> devices = new ConcurrentHashMap<>();
     private final Map<String, Scene> scenes = new ConcurrentHashMap<>();
     private final Map<String, Room> rooms = new ConcurrentHashMap<>();
+    private String securityStatus = "disarmed";
 
     private void bootstrap() {
         // Create rooms first
@@ -161,6 +162,14 @@ public class InMemoryStateStore {
 
     public boolean deleteScene(String id) {
         return scenes.remove(id) != null;
+    }
+
+    public String getSecurityStatus() {
+        return securityStatus;
+    }
+
+    public void setSecurityStatus(String securityStatus) {
+        this.securityStatus = securityStatus;
     }
 }
 

@@ -1,23 +1,24 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Shield, Lock, Unlock, Activity, AlertCircle, Clock } from "lucide-react"
+import { Shield, Lock, Unlock, Activity, AlertCircle, Clock, Video, VideoOff } from "lucide-react"
 
 // Type definitions
 type SecurityStatus = "armed" | "disarmed"
-type DeviceType = "lock" | "sensor"
-type LockStatus = "locked" | "unlocked"
-type SensorStatus = "motion" | "no-motion"
+type DeviceType = "lock" | "camera" | "sensor"
+type DeviceStatus = "locked" | "unlocked" | "recording" | "idle" | "motion" | "no-motion" | "offline"
 
 interface SecurityDevice {
   id: string
   name: string
   type: DeviceType
-  status: LockStatus | SensorStatus
+  status: DeviceStatus
+  isLocked?: boolean
+  isRecording?: boolean
 }
 
 interface SecurityAlert {
@@ -27,13 +28,7 @@ interface SecurityAlert {
   type: "info" | "warning"
 }
 
-// Mock data
-const initialDevices: SecurityDevice[] = [
-  { id: "1", name: "Front Door Lock", type: "lock", status: "locked" },
-  { id: "2", name: "Back Door Lock", type: "lock", status: "locked" },
-  { id: "3", name: "Entrance Motion Sensor", type: "sensor", status: "no-motion" },
-]
-
+// Mock alerts (keeping as mock for now)
 const initialAlerts: SecurityAlert[] = [
   { id: "1", time: "18:32", message: "Front Door unlocked (by You)", type: "info" },
   { id: "2", time: "18:10", message: "Motion detected in Entrance", type: "warning" },
@@ -43,25 +38,127 @@ const initialAlerts: SecurityAlert[] = [
 
 export default function SecurityPage() {
   const [securityStatus, setSecurityStatus] = useState<SecurityStatus>("disarmed")
-  const [devices, setDevices] = useState<SecurityDevice[]>(initialDevices)
+  const [devices, setDevices] = useState<SecurityDevice[]>([])
   const [lastChanged] = useState("18:20")
 
-  const toggleSecurityStatus = () => {
-    setSecurityStatus((prev) => (prev === "armed" ? "disarmed" : "armed"))
+  useEffect(() => {
+    fetchSecurityStatus();
+    fetchDevices();
+  }, []);
+
+  const fetchSecurityStatus = async () => {
+    try {
+      const res = await fetch("http://localhost:8080/api/security/status");
+      if (res.ok) {
+        const data = await res.json();
+        setSecurityStatus(data.status);
+      }
+    } catch (error) {
+      console.error("Failed to fetch security status:", error);
+    }
+  };
+
+  const fetchDevices = async () => {
+    try {
+      const res = await fetch("http://localhost:8080/api/devices");
+      if (res.ok) {
+        const allDevices = await res.json();
+        const filtered = allDevices
+          .filter((d: any) => d.type === "lock" || d.type === "camera")
+          .map((d: any) => ({
+            id: d.id,
+            name: d.name,
+            type: d.type,
+            status: d.type === "lock" 
+              ? (d.locked ? "locked" : "unlocked")
+              : (d.recording ? "recording" : "idle"),
+            isLocked: d.locked,
+            isRecording: d.recording
+          }));
+        setDevices(filtered);
+      }
+    } catch (error) {
+      console.error("Failed to fetch devices:", error);
+    }
+  };
+
+  const toggleSecurityStatus = async () => {
+    const newStatus = securityStatus === "armed" ? "disarmed" : "armed";
+    const endpoint = securityStatus === "armed" ? "disarm" : "arm";
+    
+    // Optimistic update
+    setSecurityStatus(newStatus);
+    
+    // Update local devices state optimistically if arming
+    if (newStatus === "armed") {
+        setDevices(prev => prev.map(d => {
+            if (d.type === 'lock') {
+                return { ...d, isLocked: true, status: "locked" };
+            }
+            if (d.type === 'camera') {
+                return { ...d, isRecording: true, status: "recording" };
+            }
+            return d;
+        }));
+    }
+
+    try {
+      await fetch(`http://localhost:8080/api/security/${endpoint}`, { method: "POST" });
+      // Re-fetch to ensure sync with backend (especially if disarming doesn't auto-unlock/stop recording)
+      fetchDevices();
+    } catch (error) {
+      console.error("Failed to update security status:", error);
+      fetchSecurityStatus(); // Revert on error
+      fetchDevices();
+    }
   }
 
-  const toggleLock = (deviceId: string) => {
-    setDevices((prev) =>
-      prev.map((device) =>
-        device.id === deviceId && device.type === "lock"
-          ? {
-              ...device,
-              status: device.status === "locked" ? "unlocked" : "locked",
-            }
-          : device
-      )
-    )
+  const toggleLock = async (deviceId: string) => {
+    const device = devices.find(d => d.id === deviceId);
+    if (!device || device.type !== 'lock') return;
+
+    const newIsLocked = !device.isLocked;
+    const action = device.isLocked ? "unlock" : "lock";
+
+    // Optimistic update
+    setDevices(prev => prev.map(d => 
+      d.id === deviceId 
+        ? { ...d, isLocked: newIsLocked, status: newIsLocked ? "locked" : "unlocked" } 
+        : d
+    ));
+
+    try {
+      await fetch(`http://localhost:8080/api/locks/${deviceId}/${action}`, { method: "POST" });
+      fetchSecurityStatus();
+    } catch (error) {
+      console.error("Failed to toggle lock:", error);
+      fetchDevices(); // Revert
+    }
   }
+
+  const toggleRecording = async (deviceId: string) => {
+    const device = devices.find(d => d.id === deviceId);
+    if (!device || device.type !== 'camera') return;
+
+    const newIsRecording = !device.isRecording;
+    const action = device.isRecording ? "stop-recording" : "start-recording";
+
+    // Optimistic update
+    setDevices(prev => prev.map(d => 
+      d.id === deviceId 
+        ? { ...d, isRecording: newIsRecording, status: newIsRecording ? "recording" : "idle" } 
+        : d
+    ));
+
+    try {
+      await fetch(`http://localhost:8080/api/cameras/${deviceId}/${action}`, { method: "POST" });
+      fetchSecurityStatus();
+    } catch (error) {
+      console.error("Failed to toggle recording:", error);
+      fetchDevices(); // Revert
+    }
+  }
+
 
   return (
     <div className="min-h-screen">
@@ -100,14 +197,14 @@ export default function SecurityPage() {
                     className={`p-6 rounded-full transition-all duration-300 ${
                       securityStatus === "armed"
                         ? "bg-green-100 ring-4 ring-green-200"
-                        : "bg-gray-100"
+                        : "bg-red-100 ring-4 ring-red-200"
                     }`}
                   >
                     <Shield
                       className={`w-12 h-12 transition-all duration-300 ${
                         securityStatus === "armed"
-                          ? "text-green-600 drop-shadow-[0_0_12px_rgba(34,197,94,0.5)]"
-                          : "text-gray-400"
+                          ? "text-green-600"
+                          : "text-red-600 animate-pulse"
                       }`}
                     />
                   </div>
@@ -144,8 +241,16 @@ export default function SecurityPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {devices.map((device, index) => {
                 const isLock = device.type === "lock"
-                const isLocked = device.status === "locked"
-                const hasMotion = device.status === "motion"
+                const isCamera = device.type === "camera"
+                
+                // Lock variables
+                const isLocked = isLock && device.status === "locked"
+                
+                // Camera variables
+                const isRecording = isCamera && device.status === "recording"
+                
+                // Motion variables (if we support sensors later)
+                const hasMotion = device.type === "sensor" && device.status === "motion"
 
                 return (
                   <Card
@@ -165,9 +270,13 @@ export default function SecurityPage() {
                                 ? isLocked
                                   ? "bg-green-50"
                                   : "bg-red-50"
-                                : hasMotion
-                                  ? "bg-orange-50"
-                                  : "bg-gray-50"
+                                : isCamera
+                                  ? isRecording
+                                    ? "bg-red-50"
+                                    : "bg-gray-50"
+                                  : hasMotion
+                                    ? "bg-orange-50"
+                                    : "bg-gray-50"
                             }`}
                           >
                             {isLock ? (
@@ -175,6 +284,12 @@ export default function SecurityPage() {
                                 <Lock className="w-5 h-5 text-green-600" />
                               ) : (
                                 <Unlock className="w-5 h-5 text-red-600" />
+                              )
+                            ) : isCamera ? (
+                              isRecording ? (
+                                <Video className="w-5 h-5 text-red-600 animate-pulse" />
+                              ) : (
+                                <VideoOff className="w-5 h-5 text-gray-400" />
                               )
                             ) : (
                               <Activity
@@ -188,8 +303,8 @@ export default function SecurityPage() {
                             <CardTitle className="text-base font-semibold text-gray-900 mb-1">
                               {device.name}
                             </CardTitle>
-                            <Badge variant="outline" className="text-xs bg-gray-50">
-                              {device.type === "lock" ? "Lock" : "Sensor"}
+                            <Badge variant="outline" className="text-xs bg-gray-50 capitalize">
+                              {device.type}
                             </Badge>
                           </div>
                         </div>
@@ -213,6 +328,24 @@ export default function SecurityPage() {
                             className="transition-all duration-200 hover:scale-105"
                           >
                             {isLocked ? "Unlock" : "Lock"}
+                          </Button>
+                        </div>
+                      ) : isCamera ? (
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                          <span
+                            className={`text-sm font-medium ${
+                              isRecording ? "text-red-600" : "text-gray-600"
+                            }`}
+                          >
+                            {isRecording ? "Recording" : "Idle"}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant={isRecording ? "destructive" : "secondary"}
+                            onClick={() => toggleRecording(device.id)}
+                            className="transition-all duration-200 hover:scale-105"
+                          >
+                            {isRecording ? "Stop Rec" : "Record"}
                           </Button>
                         </div>
                       ) : (

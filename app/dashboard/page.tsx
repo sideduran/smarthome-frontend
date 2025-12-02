@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Switch } from "@/components/ui/switch"
@@ -87,6 +88,7 @@ const getGreeting = () => {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [rooms, setRooms] = useState<RoomDisplay[]>([])
   const [stats, setStats] = useState<DashboardStats>(initialStats)
   const [isAnimating, setIsAnimating] = useState<string | null>(null)
@@ -96,15 +98,17 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [roomsRes, devicesRes] = await Promise.all([
+        const [roomsRes, devicesRes, securityRes] = await Promise.all([
           fetch('http://localhost:8080/api/rooms'),
-          fetch('http://localhost:8080/api/devices')
+          fetch('http://localhost:8080/api/devices'),
+          fetch('http://localhost:8080/api/security/status')
         ])
 
         if (!roomsRes.ok || !devicesRes.ok) throw new Error("Failed to fetch data")
 
         const roomsData: Room[] = await roomsRes.json()
         const devicesData: Device[] = await devicesRes.json()
+        const securityData = securityRes.ok ? await securityRes.json() : { status: "disarmed" }
 
         // Calculate Stats
         const totalDevices = devicesData.length
@@ -126,7 +130,7 @@ export default function DashboardPage() {
           lightsOn,
           totalLights: lights.length,
           avgTemperature: avgTemp,
-          securityStatus: "Armed" // Mock for now, or fetch from a global setting
+          securityStatus: securityData.status === "armed" ? "Armed" : "Disarmed"
         })
 
         // Map Rooms to Display format
@@ -214,6 +218,7 @@ export default function DashboardPage() {
             <Card 
               className="bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer group animate-in fade-in slide-in-from-bottom-4"
               style={{ animationDelay: '0ms', animationFillMode: 'backwards' }}
+              onClick={() => router.push("/dashboard/devices")}
             >
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-start justify-between">
@@ -271,6 +276,7 @@ export default function DashboardPage() {
              <Card 
               className="bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer group animate-in fade-in slide-in-from-bottom-4"
               style={{ animationDelay: '300ms', animationFillMode: 'backwards' }}
+              onClick={() => router.push("/dashboard/security")}
             >
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-start justify-between">
@@ -279,12 +285,16 @@ export default function DashboardPage() {
                     <p className="text-xl sm:text-2xl font-semibold text-gray-900 truncate">{stats.securityStatus}</p>
                     <p className="text-xs text-gray-500 mt-1">System status</p>
                   </div>
-                  <div className="p-2 rounded-lg bg-gray-50 text-red-600 flex-shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 relative">
-                    <Shield className="w-4 h-4 sm:w-5 sm:h-5 animate-pulse" />
-                     <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                      </span>
+                  <div className={`p-2 rounded-lg bg-gray-50 flex-shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 relative ${
+                    stats.securityStatus === "Armed" ? "text-green-600" : "text-red-600"
+                  }`}>
+                    <Shield className={`w-4 h-4 sm:w-5 sm:h-5 ${stats.securityStatus === "Armed" ? "" : "animate-pulse"}`} />
+                     {stats.securityStatus === "Disarmed" && (
+                       <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                        </span>
+                     )}
                   </div>
                 </div>
               </CardContent>

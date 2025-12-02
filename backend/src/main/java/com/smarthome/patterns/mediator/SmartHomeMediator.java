@@ -100,6 +100,16 @@ public class SmartHomeMediator {
     public void unlock(String deviceId) {
         SmartHomeCommand command = new UnlockCommand(deviceId);
         command.execute();
+        checkAndDisarmIfAllSafe();
+    }
+
+    private void checkAndDisarmIfAllSafe() {
+        boolean anyLocked = listLocks().stream().anyMatch(Lock::isLocked);
+        boolean anyRecording = listCameras().stream().anyMatch(Camera::isRecording);
+
+        if (!anyLocked && !anyRecording) {
+            disarmSecuritySystem();
+        }
     }
 
     // --- Device type-specific query operations ---
@@ -164,6 +174,7 @@ public class SmartHomeMediator {
     public void stopRecording(String deviceId) {
         SmartHomeCommand command = new StopRecordingCommand(deviceId);
         command.execute();
+        checkAndDisarmIfAllSafe();
     }
 
     public boolean assignDeviceToRoom(String deviceId, String roomId) {
@@ -237,6 +248,22 @@ public class SmartHomeMediator {
 
     public void activateScene(String sceneId) {
         SmartHomeCommand command = new ActivateSceneCommand(sceneId);
+        command.execute();
+    }
+
+    // --- Security System operations ---
+
+    public String getSecurityStatus() {
+        return store.getSecurityStatus();
+    }
+
+    public void armSecuritySystem() {
+        SmartHomeCommand command = new SetSecurityStatusCommand("armed");
+        command.execute();
+    }
+
+    public void disarmSecuritySystem() {
+        SmartHomeCommand command = new SetSecurityStatusCommand("disarmed");
         command.execute();
     }
 }
