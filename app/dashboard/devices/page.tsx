@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
@@ -51,110 +51,6 @@ interface Device {
   isLocked?: boolean
 }
 
-// Mock data
-const initialDevices: Device[] = [
-  {
-    id: "1",
-    name: "Living Room Ceiling Light",
-    type: "light",
-    room: "Living Room",
-    status: "online",
-    isOn: true,
-  },
-  {
-    id: "2",
-    name: "Bedroom Table Lamp",
-    type: "light",
-    room: "Bedroom",
-    status: "online",
-    isOn: false,
-  },
-  {
-    id: "3",
-    name: "Kitchen Overhead Lights",
-    type: "light",
-    room: "Kitchen",
-    status: "online",
-    isOn: true,
-  },
-  {
-    id: "4",
-    name: "Living Room Thermostat",
-    type: "thermostat",
-    room: "Living Room",
-    status: "online",
-    temperature: 23,
-    targetTemperature: 22,
-  },
-  {
-    id: "5",
-    name: "Bedroom Thermostat",
-    type: "thermostat",
-    room: "Bedroom",
-    status: "online",
-    temperature: 21,
-    targetTemperature: 21,
-  },
-  {
-    id: "6",
-    name: "Front Door Lock",
-    type: "lock",
-    room: "Entrance",
-    status: "online",
-    isLocked: true,
-  },
-  {
-    id: "7",
-    name: "Back Door Lock",
-    type: "lock",
-    room: "Kitchen",
-    status: "online",
-    isLocked: true,
-  },
-  {
-    id: "8",
-    name: "Entrance Camera",
-    type: "camera",
-    room: "Entrance",
-    status: "online",
-    isOn: true,
-  },
-  {
-    id: "9",
-    name: "Garage Camera",
-    type: "camera",
-    room: "Entrance",
-    status: "online",
-    isOn: true,
-  },
-  {
-    id: "10",
-    name: "Entrance Light",
-    type: "light",
-    room: "Entrance",
-    status: "online",
-    isOn: true,
-  },
-  {
-    id: "11",
-    name: "Bedroom Reading Light",
-    type: "light",
-    room: "Bedroom",
-    status: "offline",
-    isOn: false,
-  },
-  {
-    id: "12",
-    name: "Kitchen Thermostat",
-    type: "thermostat",
-    room: "Kitchen",
-    status: "online",
-    temperature: 22,
-    targetTemperature: 22,
-  },
-]
-
-const rooms = ["All rooms", "Living Room", "Bedroom", "Kitchen", "Entrance"]
 const deviceTypes = ["All", "Lights", "Thermostats", "Security"]
 
 // Device icon mapping
@@ -166,7 +62,8 @@ const deviceIcons = {
 }
 
 export default function DevicesPage() {
-  const [devices, setDevices] = useState<Device[]>(initialDevices)
+  const [devices, setDevices] = useState<Device[]>([])
+  const [rooms, setRooms] = useState<string[]>(["All rooms"])
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedRoom, setSelectedRoom] = useState("All rooms")
   const [selectedType, setSelectedType] = useState("All")
@@ -177,6 +74,53 @@ export default function DevicesPage() {
   const [newDeviceName, setNewDeviceName] = useState("")
   const [newDeviceType, setNewDeviceType] = useState<DeviceType>("light")
   const [newDeviceRoom, setNewDeviceRoom] = useState("Living Room")
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [devicesRes, roomsRes] = await Promise.all([
+          fetch("http://localhost:8080/api/devices"),
+          fetch("http://localhost:8080/api/rooms")
+        ]);
+
+        if (!devicesRes.ok || !roomsRes.ok) throw new Error("Failed to fetch data");
+
+        const devicesData = await devicesRes.json();
+        const roomsData = await roomsRes.json();
+
+        // Map rooms to names dictionary
+        const roomMap: Record<string, string> = {};
+        roomsData.forEach((r: any) => {
+          roomMap[r.id] = r.name;
+        });
+        
+        // Set available rooms
+        setRooms(["All rooms", ...roomsData.map((r: any) => r.name)]);
+        if (roomsData.length > 0) {
+             setNewDeviceRoom(roomsData[0].name);
+        }
+
+        // Map devices
+        const mappedDevices: Device[] = devicesData.map((d: any) => ({
+          id: d.id,
+          name: d.name,
+          type: d.type as DeviceType,
+          room: roomMap[d.roomId] || "Unknown Room",
+          status: d.online ? "online" : "offline",
+          isOn: d.on,
+          temperature: d.currentTemperature,
+          targetTemperature: d.targetTemperature,
+          isLocked: d.locked
+        }));
+
+        setDevices(mappedDevices);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const getGreeting = () => {
     const hour = new Date().getHours()
@@ -198,32 +142,67 @@ export default function DevicesPage() {
   })
 
   // Toggle device handlers
-  const toggleLight = (deviceId: string) => {
+  const toggleLight = async (deviceId: string) => {
     setAnimatingDevice(deviceId)
     setTimeout(() => setAnimatingDevice(null), 500)
+    
+    const device = devices.find(d => d.id === deviceId);
+    if (!device) return;
+
+    // 1. Optimistic Update (Arayüzü hemen güncelle)
     setDevices((prev) =>
-      prev.map((device) =>
-        device.id === deviceId ? { ...device, isOn: !device.isOn } : device
+      prev.map((d) =>
+        d.id === deviceId ? { ...d, isOn: !d.isOn } : d
       )
     )
+
+    // 2. API Call (Backend'e bildir)
+    try {
+      const action = device.isOn ? "turn-off" : "turn-on";
+      await fetch(`http://localhost:8080/api/lights/${deviceId}/${action}`, { method: "POST" });
+    } catch (error) {
+      console.error("Failed to update light:", error);
+      // Hata olursa state'i geri alabilirsiniz (opsiyonel)
+    }
   }
 
-  const toggleLock = (deviceId: string) => {
+  const toggleLock = async (deviceId: string) => {
     setAnimatingDevice(deviceId)
     setTimeout(() => setAnimatingDevice(null), 500)
+
+    const device = devices.find(d => d.id === deviceId);
+    if (!device) return;
+
     setDevices((prev) =>
-      prev.map((device) =>
-        device.id === deviceId ? { ...device, isLocked: !device.isLocked } : device
+      prev.map((d) =>
+        d.id === deviceId ? { ...d, isLocked: !d.isLocked } : d
       )
     )
+
+    try {
+      const action = device.isLocked ? "unlock" : "lock";
+      await fetch(`http://localhost:8080/api/locks/${deviceId}/${action}`, { method: "POST" });
+    } catch (error) {
+      console.error("Failed to update lock:", error);
+    }
   }
 
-  const updateTemperature = (deviceId: string, value: number[]) => {
+  const updateTemperature = async (deviceId: string, value: number[]) => {
     setDevices((prev) =>
       prev.map((device) =>
         device.id === deviceId ? { ...device, targetTemperature: value[0] } : device
       )
     )
+
+    try {
+      await fetch(`http://localhost:8080/api/thermostats/${deviceId}/set-target-heat`, { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetTemperature: value[0] })
+      });
+    } catch (error) {
+       console.error("Failed to update temperature:", error);
+    }
   }
 
   const handleAddDevice = () => {
