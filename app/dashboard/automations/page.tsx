@@ -25,6 +25,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   Clock,
   Plus,
   Edit2,
@@ -33,7 +39,9 @@ import {
   Zap,
   Power,
   Thermometer,
-  Video
+  Video,
+  ChevronDown,
+  Lightbulb
 } from "lucide-react"
 
 // Type definitions
@@ -159,7 +167,7 @@ export default function AutomationsPage() {
     }
   }
 
-  const handleCreate = () => {
+  const handleCreate = (type: ActionType) => {
     setEditingId(null)
     setFormName("")
     setFormTime("12:00")
@@ -167,7 +175,7 @@ export default function AutomationsPage() {
     setFormActive(true)
     
     // Reset Action Form
-    setFormActionType('SCENE')
+    setFormActionType(type)
     setFormTargetId("")
     setFormDeviceAction("turnOn")
     setFormActionValue(null)
@@ -358,13 +366,27 @@ export default function AutomationsPage() {
         <section className="mb-6 animate-in fade-in slide-in-from-top-4 duration-500">
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
             <div />
-            <Button
-              onClick={handleCreate}
-              className="w-full sm:w-auto whitespace-nowrap hover:scale-105 transition-transform"
-            >
-              <Plus className="w-4 h-4" />
-              Create Automation
-            </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="w-full sm:w-auto whitespace-nowrap hover:scale-105 transition-transform">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Automation
+                  <ChevronDown className="w-4 h-4 ml-1 opacity-50" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onClick={() => handleCreate('SCENE')}>
+                  <Zap className="w-4 h-4 mr-2 text-purple-500" />
+                  <span>For a Scene</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleCreate('DEVICE_CONTROL')}>
+                  <Lightbulb className="w-4 h-4 mr-2 text-blue-500" />
+                  <span>For a Device</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
           </div>
         </section>
 
@@ -383,64 +405,152 @@ export default function AutomationsPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {automations.map((automation, index) => (
-                <Card
-                  key={automation.id}
-                  className="bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-bottom-4"
-                  style={{
-                    animationDelay: `${index * 50}ms`,
-                    animationFillMode: "backwards",
-                  }}
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-4">
-                        <div className={`p-3 rounded-lg ${automation.active ? 'bg-blue-50' : 'bg-gray-100'} shrink-0 transition-colors duration-300`}>
-                          <Clock className={`w-6 h-6 ${automation.active ? 'text-blue-600' : 'text-gray-400'}`} />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900">{automation.name}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline" className="font-mono bg-gray-50">
-                              {automation.time}
-                            </Badge>
-                            <span className="text-sm text-gray-500">
-                              {automation.days.length === 7 ? 'Every day' : automation.days.join(', ')}
-                            </span>
-                          </div>
-                          <div className="mt-2">
-                            {renderActionSummary(automation)}
-                          </div>
-                        </div>
-                      </div>
-                      <Switch
-                        checked={automation.active}
-                        onCheckedChange={() => toggleAutomationActive(automation)}
-                      />
-                    </div>
-                    
-                    <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEdit(automation)}
-                        className="hover:bg-blue-50 hover:text-blue-600 transition-colors"
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
+            {/* Scene Automations */}
+            <div className="space-y-4">
+              {automations.some(a => a.actions[0]?.type === 'SCENE') && (
+                <>
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-purple-600" />
+                  Scene Automations
+                </h2>
+                <div className="grid grid-cols-1 gap-4">
+                  {automations
+                    .filter(a => a.actions[0]?.type === 'SCENE')
+                    .map((automation, index) => (
+                      <Card
+                        key={automation.id}
+                        className="bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-bottom-4"
+                        style={{
+                          animationDelay: `${index * 50}ms`,
+                          animationFillMode: "backwards",
+                        }}
                       >
-                        <Edit2 className="w-4 h-4 mr-2" /> Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(automation.id)}
-                        className="hover:bg-red-50 hover:text-red-600 transition-colors"
+                         <CardContent className="p-6">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex items-start gap-4">
+                                <div className={`p-3 rounded-lg ${automation.active ? 'bg-purple-50' : 'bg-gray-100'} shrink-0 transition-colors duration-300`}>
+                                  <Clock className={`w-6 h-6 ${automation.active ? 'text-purple-600' : 'text-gray-400'}`} />
+                                </div>
+                                <div>
+                                  <h3 className="text-lg font-semibold text-gray-900">{automation.name}</h3>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge variant="outline" className="font-mono bg-gray-50">
+                                      {automation.time}
+                                    </Badge>
+                                    <span className="text-sm text-gray-500">
+                                      {automation.days.length === 7 ? 'Every day' : automation.days.join(', ')}
+                                    </span>
+                                  </div>
+                                  <div className="mt-2">
+                                    {renderActionSummary(automation)}
+                                  </div>
+                                </div>
+                              </div>
+                              <Switch
+                                checked={automation.active}
+                                onCheckedChange={() => toggleAutomationActive(automation)}
+                              />
+                            </div>
+                            
+                            <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(automation)}
+                                className="hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                              >
+                                <Edit2 className="w-4 h-4 mr-2" /> Edit
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(automation.id)}
+                                className="hover:bg-red-50 hover:text-red-600 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" /> Delete
+                              </Button>
+                            </div>
+                          </CardContent>
+                      </Card>
+                  ))}
+                </div>
+                </>
+              )}
+            </div>
+
+            {/* Device Automations */}
+            <div className="space-y-4">
+            {automations.some(a => a.actions[0]?.type === 'DEVICE_CONTROL') && (
+              <>
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Lightbulb className="w-5 h-5 text-blue-600" />
+                  Device Automations
+                </h2>
+                <div className="grid grid-cols-1 gap-4">
+                  {automations
+                    .filter(a => a.actions[0]?.type === 'DEVICE_CONTROL')
+                    .map((automation, index) => (
+                      <Card
+                        key={automation.id}
+                        className="bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-bottom-4"
+                        style={{
+                          animationDelay: `${index * 50}ms`,
+                          animationFillMode: "backwards",
+                        }}
                       >
-                        <Trash2 className="w-4 h-4 mr-2" /> Delete
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                         <CardContent className="p-6">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex items-start gap-4">
+                                <div className={`p-3 rounded-lg ${automation.active ? 'bg-blue-50' : 'bg-gray-100'} shrink-0 transition-colors duration-300`}>
+                                  <Clock className={`w-6 h-6 ${automation.active ? 'text-blue-600' : 'text-gray-400'}`} />
+                                </div>
+                                <div>
+                                  <h3 className="text-lg font-semibold text-gray-900">{automation.name}</h3>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge variant="outline" className="font-mono bg-gray-50">
+                                      {automation.time}
+                                    </Badge>
+                                    <span className="text-sm text-gray-500">
+                                      {automation.days.length === 7 ? 'Every day' : automation.days.join(', ')}
+                                    </span>
+                                  </div>
+                                  <div className="mt-2">
+                                    {renderActionSummary(automation)}
+                                  </div>
+                                </div>
+                              </div>
+                              <Switch
+                                checked={automation.active}
+                                onCheckedChange={() => toggleAutomationActive(automation)}
+                              />
+                            </div>
+                            
+                            <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(automation)}
+                                className="hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                              >
+                                <Edit2 className="w-4 h-4 mr-2" /> Edit
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(automation.id)}
+                                className="hover:bg-red-50 hover:text-red-600 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" /> Delete
+                              </Button>
+                            </div>
+                          </CardContent>
+                      </Card>
+                  ))}
+                </div>
+              </>
+            )}
+            </div>
             </div>
           )}
         </section>
@@ -502,25 +612,6 @@ export default function AutomationsPage() {
             </div>
 
             <div className="border-t border-gray-100 pt-4 space-y-4">
-                <div className="space-y-2">
-                    <Label>Action Type</Label>
-                    <Select 
-                        value={formActionType} 
-                        onValueChange={(val) => {
-                            setFormActionType(val as ActionType)
-                            setFormTargetId("") // Reset target when type changes
-                        }}
-                    >
-                        <SelectTrigger>
-                        <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                        <SelectItem value="SCENE">Run a Scene</SelectItem>
-                        <SelectItem value="DEVICE_CONTROL">Control a Device</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-
                 {formActionType === 'SCENE' && (
                     <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
                         <Label>Select Scene</Label>
