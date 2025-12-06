@@ -16,6 +16,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import {
   Clock,
@@ -38,10 +45,16 @@ interface Device {
   on: boolean
 }
 
+interface SceneAction {
+  deviceId: string
+  actionType: string
+  value?: number
+}
+
 interface Scene {
   id: string
   name: string
-  deviceIds: string[]
+  actions: SceneAction[]
   active: boolean
 }
 
@@ -54,12 +67,10 @@ export default function ScenesPage() {
   
   // Form state
   const [formName, setFormName] = useState("")
-  const [formDeviceIds, setFormDeviceIds] = useState<string[]>([])
+  const [formActions, setFormActions] = useState<SceneAction[]>([])
   
   // Track active scene (derived from device states)
   const isSceneActive = (scene: Scene) => {
-    // Only active if explicitly activated and devices are still in sync
-    // The backend now manages the 'active' flag based on these rules
     return scene.active;
   };
 
@@ -96,7 +107,7 @@ export default function ScenesPage() {
   const handleCreate = () => {
     setEditingId(null)
     setFormName("")
-    setFormDeviceIds([])
+    setFormActions([])
     setIsModalOpen(true)
   }
 
@@ -104,7 +115,7 @@ export default function ScenesPage() {
   const handleEdit = (scene: Scene) => {
     setEditingId(scene.id)
     setFormName(scene.name)
-    setFormDeviceIds(scene.deviceIds)
+    setFormActions(scene.actions || [])
     setIsModalOpen(true)
   }
 
@@ -115,7 +126,7 @@ export default function ScenesPage() {
     const sceneData = {
       id: editingId || Date.now().toString(),
       name: formName,
-      deviceIds: formDeviceIds
+      actions: formActions
     }
 
     try {
@@ -165,7 +176,6 @@ export default function ScenesPage() {
     try {
       const response = await fetch(`http://localhost:8080/api/scenes/${id}/activate`, { method: "POST" });
       if (response.ok) {
-        // Refresh scenes to get the updated 'active' status
         fetchScenes();
         toast({
           title: "Scene Activated",
@@ -191,12 +201,41 @@ export default function ScenesPage() {
 
   // Toggle device selection
   const toggleDevice = (deviceId: string) => {
-    if (formDeviceIds.includes(deviceId)) {
-      setFormDeviceIds(formDeviceIds.filter((id) => id !== deviceId))
+    const existingAction = formActions.find(a => a.deviceId === deviceId);
+    if (existingAction) {
+      setFormActions(formActions.filter(a => a.deviceId !== deviceId));
     } else {
-      setFormDeviceIds([...formDeviceIds, deviceId])
+      const device = devices.find(d => d.id === deviceId);
+      let defaultAction = "TURN_ON";
+      let defaultValue = undefined;
+
+      if (device?.type === 'lock') defaultAction = "LOCK";
+      if (device?.type === 'camera') defaultAction = "RECORD";
+      if (device?.type === 'thermostat') {
+        defaultAction = "SET_TEMP";
+        defaultValue = 22;
+      }
+      
+      setFormActions([...formActions, { deviceId, actionType: defaultAction, value: defaultValue }]);
     }
   }
+
+  const updateActionType = (deviceId: string, type: string) => {
+    setFormActions(formActions.map(a => a.deviceId === deviceId ? { ...a, actionType: type } : a));
+  }
+
+  const updateActionValue = (deviceId: string, value: number) => {
+    setFormActions(formActions.map(a => a.deviceId === deviceId ? { ...a, value } : a));
+  }
+
+  const getDeviceIcon = (type: string) => {
+    switch (type) {
+      case 'light': return <Lightbulb className="w-4 h-4" />;
+      case 'thermostat': return <Thermometer className="w-4 h-4" />;
+      case 'lock': return <Lock className="w-4 h-4" />;
+      default: return <Zap className="w-4 h-4" />;
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -277,7 +316,7 @@ export default function ScenesPage() {
                         </CardTitle>
                         <div className="text-sm text-gray-600 mt-1">
                           {devices
-                            .filter(d => scene.deviceIds.includes(d.id))
+                            .filter(d => scene.actions?.some(a => a.deviceId === d.id))
                             .map(d => d.name)
                             .join(", ") || "No devices"}
                         </div>
@@ -353,25 +392,83 @@ export default function ScenesPage() {
             {/* Device Selection */}
             <div className="space-y-2">
               <Label className="text-sm font-medium text-gray-900">
-                Select Device{formDeviceIds.length !== 1 ? 's' : ''} ({formDeviceIds.length} selected)
+                Select Devices and Actions ({formActions.length} selected)
               </Label>
-              <div className="border border-gray-200 rounded-lg p-3 max-h-64 overflow-y-auto space-y-2">
-                {devices.map((device) => (
-                  <div
-                    key={device.id}
-                    className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded transition-colors cursor-pointer"
-                    onClick={() => toggleDevice(device.id)}
-                  >
-                    <Checkbox
-                      checked={formDeviceIds.includes(device.id)}
-                      onCheckedChange={() => toggleDevice(device.id)}
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">{device.name}</p>
-                      <p className="text-xs text-gray-500">{device.type}</p>
+              <div className="border border-gray-200 rounded-lg p-3 max-h-96 overflow-y-auto space-y-2">
+                {devices.map((device) => {
+                  const isSelected = formActions.some(a => a.deviceId === device.id);
+                  const action = formActions.find(a => a.deviceId === device.id);
+
+                  return (
+                    <div
+                      key={device.id}
+                      className={`flex flex-col space-y-2 p-3 rounded transition-colors border ${
+                        isSelected ? "bg-blue-50 border-blue-200" : "bg-white border-transparent hover:bg-gray-50"
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleDevice(device.id)}
+                        />
+                        <div className="flex-1 flex items-center gap-2">
+                            {getDeviceIcon(device.type)}
+                            <div>
+                                <p className="text-sm font-medium text-gray-900">{device.name}</p>
+                                <p className="text-xs text-gray-500 capitalize">{device.type}</p>
+                            </div>
+                        </div>
+                      </div>
+
+                      {isSelected && action && (
+                        <div className="pl-7 pt-2 flex items-center gap-2 animate-in slide-in-from-top-2 duration-200">
+                          <Select
+                            value={action.actionType}
+                            onValueChange={(val) => updateActionType(device.id, val)}
+                          >
+                            <SelectTrigger className="h-8 w-[140px] text-xs">
+                              <SelectValue placeholder="Select action" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {device.type === 'lock' ? (
+                                <>
+                                  <SelectItem value="LOCK">Lock</SelectItem>
+                                  <SelectItem value="UNLOCK">Unlock</SelectItem>
+                                </>
+                              ) : device.type === 'camera' ? (
+                                <>
+                                  <SelectItem value="RECORD">Record</SelectItem>
+                                  <SelectItem value="STOP_RECORDING">Stop Rec</SelectItem>
+                                </>
+                              ) : device.type === 'thermostat' ? (
+                                <>
+                                  <SelectItem value="SET_TEMP">Set Temp</SelectItem>
+                                </>
+                              ) : (
+                                <>
+                                  <SelectItem value="TURN_ON">Turn On</SelectItem>
+                                  <SelectItem value="TURN_OFF">Turn Off</SelectItem>
+                                </>
+                              )}
+                            </SelectContent>
+                          </Select>
+
+                          {action.actionType === 'SET_TEMP' && (
+                             <div className="flex items-center gap-2">
+                                <Input 
+                                    type="number" 
+                                    className="h-8 w-20 text-xs" 
+                                    value={action.value || 22} 
+                                    onChange={(e) => updateActionValue(device.id, parseFloat(e.target.value))}
+                                />
+                                <span className="text-xs text-gray-500">°C</span>
+                             </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -382,7 +479,7 @@ export default function ScenesPage() {
             </Button>
             <Button
               onClick={handleSave}
-              disabled={!formName.trim() || formDeviceIds.length === 0}
+              disabled={!formName.trim() || formActions.length === 0}
             >
               {editingId ? "Save Changes" : "Create Scene"}
             </Button>
@@ -392,4 +489,3 @@ export default function ScenesPage() {
     </div>
   )
 }
-

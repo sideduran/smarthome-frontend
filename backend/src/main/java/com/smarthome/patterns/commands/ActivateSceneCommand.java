@@ -1,13 +1,13 @@
 package com.smarthome.patterns.commands;
 
 import com.smarthome.config.InMemoryStateStore;
-import com.smarthome.domain.Camera;
+import com.smarthome.domain.*;
 
 /**
  * Concrete Command (Command pattern).
  *
  * This command activates a "scene" by delegating to the mediator (through the store).
- * For simplicity it just toggles all devices that belong to the scene.
+ * It executes the specific actions defined in the scene for each device.
  */
 public class ActivateSceneCommand implements SmartHomeCommand {
 
@@ -21,16 +21,47 @@ public class ActivateSceneCommand implements SmartHomeCommand {
     @Override
     public void execute() {
         store.getScene(sceneId).ifPresent(scene -> {
-            // Activate devices
-            scene.getDeviceIds().forEach(deviceId ->
-                store.getDevice(deviceId).ifPresent(device -> {
-                    device.setOn(true);
-                    if (device instanceof Camera) {
-                        ((Camera) device).setRecording(true);
+            scene.getActions().forEach(action -> {
+                store.getDevice(action.getDeviceId()).ifPresent(device -> {
+                    String type = action.getActionType();
+                    if (type != null) {
+                        switch (type) {
+                            case "TURN_ON":
+                                device.setOn(true);
+                                break;
+                            case "TURN_OFF":
+                                device.setOn(false);
+                                break;
+                            case "LOCK":
+                                if (device instanceof Lock) {
+                                    ((Lock) device).setLocked(true);
+                                }
+                                break;
+                            case "UNLOCK":
+                                if (device instanceof Lock) {
+                                    ((Lock) device).setLocked(false);
+                                }
+                                break;
+                            case "RECORD":
+                                if (device instanceof Camera) {
+                                    ((Camera) device).setRecording(true);
+                                }
+                                break;
+                            case "STOP_RECORDING":
+                                if (device instanceof Camera) {
+                                    ((Camera) device).setRecording(false);
+                                }
+                                break;
+                            case "SET_TEMP":
+                                if (device instanceof Thermostat && action.getValue() != null) {
+                                    ((Thermostat) device).setTargetTemperature(action.getValue());
+                                }
+                                break;
+                        }
+                        store.updateDevice(device);
                     }
-                    store.updateDevice(device);
-                })
-            );
+                });
+            });
             
             // Set scene as active
             scene.setActive(true);
@@ -38,5 +69,3 @@ public class ActivateSceneCommand implements SmartHomeCommand {
         });
     }
 }
-
-

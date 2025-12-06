@@ -31,7 +31,7 @@ public class SceneController {
 
     @PostMapping
     public ResponseEntity<Scene> createScene(@RequestBody CreateSceneRequest request) {
-        Scene scene = new Scene(request.getId(), request.getName(), request.getDeviceIds());
+        Scene scene = new Scene(request.getId(), request.getName(), request.getActions());
         mediator.createScene(scene);
         return ResponseEntity.status(HttpStatus.CREATED).body(scene);
     }
@@ -45,7 +45,7 @@ public class SceneController {
 
         Scene scene = existing.get();
         scene.setName(request.getName());
-        scene.setDeviceIds(request.getDeviceIds());
+        scene.setActions(request.getActions());
         mediator.updateScene(scene);
         return ResponseEntity.ok(scene);
     }

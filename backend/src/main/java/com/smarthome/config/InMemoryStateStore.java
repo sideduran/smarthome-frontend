@@ -87,7 +87,10 @@ public class InMemoryStateStore {
         kitchen.addDevice(kitchenCamera.getId());
 
         // Create scenes
-        Scene evening = new Scene("scene-evening", "Evening mode", List.of(livingRoomLight.getId(), livingRoomThermostat.getId()));
+        List<SceneAction> eveningActions = new ArrayList<>();
+        eveningActions.add(new SceneAction(livingRoomLight.getId(), "TURN_ON", null));
+        eveningActions.add(new SceneAction(livingRoomThermostat.getId(), "SET_TEMP", 22.0));
+        Scene evening = new Scene("scene-evening", "Evening mode", eveningActions);
         scenes.put(evening.getId(), evening);
     }
 
@@ -156,7 +159,7 @@ public class InMemoryStateStore {
                 getRoom(removed.getRoomId()).ifPresent(room -> room.removeDevice(id));
             }
             // Remove device from all scenes
-            scenes.values().forEach(scene -> scene.getDeviceIds().remove(id));
+            scenes.values().forEach(scene -> scene.getActions().removeIf(action -> action.getDeviceId().equals(id)));
         }
         return removed != null;
     }

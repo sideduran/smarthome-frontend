@@ -1,19 +1,20 @@
 package com.smarthome.web.dto;
 
+import com.smarthome.domain.SceneAction;
 import java.util.List;
 
 public class CreateSceneRequest {
     private String id;
     private String name;
-    private List<String> deviceIds;
+    private List<SceneAction> actions;
 
     public CreateSceneRequest() {
     }
 
-    public CreateSceneRequest(String id, String name, List<String> deviceIds) {
+    public CreateSceneRequest(String id, String name, List<SceneAction> actions) {
         this.id = id;
         this.name = name;
-        this.deviceIds = deviceIds;
+        this.actions = actions;
     }
 
     public String getId() {
@@ -32,12 +33,11 @@ public class CreateSceneRequest {
         this.name = name;
     }
 
-    public List<String> getDeviceIds() {
-        return deviceIds;
+    public List<SceneAction> getActions() {
+        return actions;
     }
 
-    public void setDeviceIds(List<String> deviceIds) {
-        this.deviceIds = deviceIds;
+    public void setActions(List<SceneAction> actions) {
+        this.actions = actions;
     }
 }
-

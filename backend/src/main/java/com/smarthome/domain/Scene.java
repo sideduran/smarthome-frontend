@@ -2,20 +2,21 @@ package com.smarthome.domain;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class Scene {
     private String id;
     private String name;
-    private List<String> deviceIds = new ArrayList<>();
+    private List<SceneAction> actions = new ArrayList<>();
     private boolean active;
 
     public Scene() {
     }
 
-    public Scene(String id, String name, List<String> deviceIds) {
+    public Scene(String id, String name, List<SceneAction> actions) {
         this.id = id;
         this.name = name;
-        this.deviceIds = new ArrayList<>(deviceIds);
+        this.actions = new ArrayList<>(actions);
         this.active = false;
     }
 
@@ -35,12 +36,18 @@ public class Scene {
         this.name = name;
     }
 
-    public List<String> getDeviceIds() {
-        return deviceIds;
+    public List<SceneAction> getActions() {
+        return actions;
     }
 
-    public void setDeviceIds(List<String> deviceIds) {
-        this.deviceIds = deviceIds;
+    public void setActions(List<SceneAction> actions) {
+        this.actions = actions;
+    }
+
+    public List<String> getDeviceIds() {
+        return actions.stream()
+                .map(SceneAction::getDeviceId)
+                .collect(Collectors.toList());
     }
 
     public boolean isActive() {
@@ -51,5 +58,3 @@ public class Scene {
         this.active = active;
     }
 }
-
-
