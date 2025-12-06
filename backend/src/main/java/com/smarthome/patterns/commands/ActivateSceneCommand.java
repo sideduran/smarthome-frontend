@@ -19,14 +19,19 @@ public class ActivateSceneCommand implements SmartHomeCommand {
 
     @Override
     public void execute() {
-        store.getScene(sceneId).ifPresent(scene ->
+        store.getScene(sceneId).ifPresent(scene -> {
+            // Activate devices
             scene.getDeviceIds().forEach(deviceId ->
                 store.getDevice(deviceId).ifPresent(device -> {
                     device.setOn(true);
                     store.updateDevice(device);
                 })
-            )
-        );
+            );
+            
+            // Set scene as active
+            scene.setActive(true);
+            store.updateScene(scene);
+        });
     }
 }
 

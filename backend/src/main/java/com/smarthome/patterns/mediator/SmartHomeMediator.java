@@ -26,6 +26,16 @@ public class SmartHomeMediator {
 
     private final InMemoryStateStore store = InMemoryStateStore.getInstance();
 
+    // --- Helper for invalidating scenes when devices are manually controlled ---
+    private void invalidateScenesForDevice(String deviceId) {
+        store.getScenes().stream()
+            .filter(scene -> scene.getDeviceIds().contains(deviceId) && scene.isActive())
+            .forEach(scene -> {
+                scene.setActive(false);
+                store.updateScene(scene);
+            });
+    }
+
     // --- Helper for logging ---
     private void logActivity(String deviceId, String action, String details, String iconType) {
         String deviceName = "Unknown Device";
@@ -33,11 +43,23 @@ public class SmartHomeMediator {
             Optional<Device> device = store.getDevice(deviceId);
             if (device.isPresent()) {
                 deviceName = device.get().getName();
+                
+                // Append room name to details if available
+                String roomId = device.get().getRoomId();
+                if (roomId != null) {
+                    Optional<Room> room = store.getRoom(roomId);
+                    if (room.isPresent()) {
+                        details = details + " in " + room.get().getName();
+                    }
+                }
             } else if (deviceId.equals("security-system")) {
                 deviceName = "Security System";
             } else {
                  Optional<Scene> scene = store.getScene(deviceId);
-                 if (scene.isPresent()) deviceName = scene.get().getName();
+                 if (scene.isPresent()) {
+                     deviceName = scene.get().getName();
+                     details = details + ": " + deviceName;
+                 }
             }
         }
         
@@ -85,50 +107,59 @@ public class SmartHomeMediator {
     public void toggleDevice(String deviceId) {
         SmartHomeCommand command = new ToggleDeviceCommand(deviceId);
         command.execute();
+        invalidateScenesForDevice(deviceId);
     }
 
     public void turnOnLight(String deviceId) {
         SmartHomeCommand command = new TurnOnLightCommand(deviceId);
         command.execute();
         logActivity(deviceId, "turned on", "Light turned on", "LIGHT");
+        invalidateScenesForDevice(deviceId);
     }
 
     public void turnOffLight(String deviceId) {
         SmartHomeCommand command = new TurnOffLightCommand(deviceId);
         command.execute();
         logActivity(deviceId, "turned off", "Light turned off", "LIGHT");
+        invalidateScenesForDevice(deviceId);
     }
 
     public void increaseTargetHeat(String deviceId) {
         SmartHomeCommand command = new IncreaseTargetHeatCommand(deviceId);
         command.execute();
+        invalidateScenesForDevice(deviceId);
     }
 
     public void increaseTargetHeat(String deviceId, double amount) {
         SmartHomeCommand command = new IncreaseTargetHeatCommand(deviceId, amount);
         command.execute();
+        invalidateScenesForDevice(deviceId);
     }
 
     public void decreaseTargetHeat(String deviceId) {
         SmartHomeCommand command = new DecreaseTargetHeatCommand(deviceId);
         command.execute();
+        invalidateScenesForDevice(deviceId);
     }
 
     public void decreaseTargetHeat(String deviceId, double amount) {
         SmartHomeCommand command = new DecreaseTargetHeatCommand(deviceId, amount);
         command.execute();
+        invalidateScenesForDevice(deviceId);
     }
 
     public void setTargetHeat(String deviceId, double targetTemperature) {
         SmartHomeCommand command = new SetTargetHeatCommand(deviceId, targetTemperature);
         command.execute();
         logActivity(deviceId, "set to " + targetTemperature + "°C", "Thermostat adjusted", "THERMOSTAT");
+        invalidateScenesForDevice(deviceId);
     }
 
     public void lock(String deviceId) {
         SmartHomeCommand command = new LockCommand(deviceId);
         command.execute();
         logActivity(deviceId, "locked", "Door locked", "LOCK");
+        invalidateScenesForDevice(deviceId);
     }
 
     public void unlock(String deviceId) {
@@ -136,6 +167,7 @@ public class SmartHomeMediator {
         command.execute();
         logActivity(deviceId, "unlocked", "Door unlocked", "LOCK");
         checkAndDisarmIfAllSafe();
+        invalidateScenesForDevice(deviceId);
     }
 
     private void checkAndDisarmIfAllSafe() {
@@ -204,12 +236,14 @@ public class SmartHomeMediator {
     public void startRecording(String deviceId) {
         SmartHomeCommand command = new StartRecordingCommand(deviceId);
         command.execute();
+        invalidateScenesForDevice(deviceId);
     }
 
     public void stopRecording(String deviceId) {
         SmartHomeCommand command = new StopRecordingCommand(deviceId);
         command.execute();
         checkAndDisarmIfAllSafe();
+        invalidateScenesForDevice(deviceId);
     }
 
     public boolean assignDeviceToRoom(String deviceId, String roomId) {

@@ -34,12 +34,14 @@ interface Device {
   name: string
   type: string
   room: string
+  on: boolean
 }
 
 interface Scene {
   id: string
   name: string
   deviceIds: string[]
+  active: boolean
 }
 
 export default function ScenesPage() {
@@ -51,6 +53,13 @@ export default function ScenesPage() {
   // Form state
   const [formName, setFormName] = useState("")
   const [formDeviceIds, setFormDeviceIds] = useState<string[]>([])
+  
+  // Track active scene (derived from device states)
+  const isSceneActive = (scene: Scene) => {
+    // Only active if explicitly activated and devices are still in sync
+    // The backend now manages the 'active' flag based on these rules
+    return scene.active;
+  };
 
   useEffect(() => {
     fetchScenes();
@@ -142,7 +151,8 @@ export default function ScenesPage() {
   const handleActivate = async (id: string) => {
     try {
       await fetch(`http://localhost:8080/api/scenes/${id}/activate`, { method: "POST" });
-      // Optional: Show success toast
+      // Refresh scenes to get the updated 'active' status
+      fetchScenes();
     } catch (error) {
       console.error("Error activating scene:", error);
     }
@@ -209,10 +219,16 @@ export default function ScenesPage() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {scenes.map((scene, index) => (
+            {scenes.map((scene, index) => {
+              const isActive = isSceneActive(scene);
+              return (
               <Card
                 key={scene.id}
-                className="bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-bottom-4"
+                className={`bg-white transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-bottom-4 ${
+                  isActive 
+                    ? "ring-2 ring-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.5)] border-yellow-200" 
+                    : "hover:shadow-lg"
+                }`}
                 style={{
                   animationDelay: `${index * 50}ms`,
                   animationFillMode: "backwards",
@@ -265,7 +281,8 @@ export default function ScenesPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            );
+            })}
             </div>
           )}
         </section>

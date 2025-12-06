@@ -7,6 +7,7 @@ public class Scene {
     private String id;
     private String name;
     private List<String> deviceIds = new ArrayList<>();
+    private boolean active;
 
     public Scene() {
     }
@@ -15,6 +16,7 @@ public class Scene {
         this.id = id;
         this.name = name;
         this.deviceIds = new ArrayList<>(deviceIds);
+        this.active = false;
     }
 
     public String getId() {
@@ -39,6 +41,14 @@ public class Scene {
 
     public void setDeviceIds(List<String> deviceIds) {
         this.deviceIds = deviceIds;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 }
 
