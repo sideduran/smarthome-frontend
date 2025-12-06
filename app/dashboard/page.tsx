@@ -24,8 +24,11 @@ import {
   Shield, 
   Home,
   LockKeyhole,
+  LockOpen,
   Clock,
-  Plus
+  Plus,
+  Video,
+  VideoOff
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -68,6 +71,7 @@ interface Device {
   on: boolean
   roomId: string
   currentTemperature?: number // For thermostats
+  recording?: boolean // For cameras
 }
 
 // Stats interface for state
@@ -87,6 +91,10 @@ interface RoomDisplay {
   devices: number
   activeDevices: number
   lightOn: boolean
+  locked: boolean
+  recording: boolean
+  hasLocks: boolean
+  hasCameras: boolean
   temperature: string
 }
 
@@ -148,6 +156,10 @@ export default function DashboardPage() {
           devices: 0,
           activeDevices: 0,
           lightOn: false,
+          locked: true,
+          recording: false,
+          hasLocks: false,
+          hasCameras: false,
           temperature: "-"
         }
         
@@ -225,6 +237,16 @@ export default function DashboardPage() {
           // Check if any light is on in the room
           const isAnyLightOn = roomDevices.some(d => d.type === 'light' && d.on)
           
+          // Check locks (Locked = on)
+          const roomLocks = roomDevices.filter(d => d.type === 'lock')
+          const isRoomLocked = roomLocks.length > 0 ? roomLocks.every(d => d.on) : true
+          const hasLocks = roomLocks.length > 0
+
+          // Check cameras
+          const roomCameras = roomDevices.filter(d => d.type === 'camera')
+          const isAnyRecording = roomCameras.some(d => d.recording)
+          const hasCameras = roomCameras.length > 0
+          
           // Calculate room temperature (average of thermostats in room, or general average if none)
           const roomThermostats = roomDevices.filter(d => d.type === 'thermostat')
           let roomTemp = "N/A"
@@ -242,6 +264,10 @@ export default function DashboardPage() {
             devices: roomDevices.length,
             activeDevices: activeCount,
             lightOn: isAnyLightOn,
+            locked: isRoomLocked,
+            recording: isAnyRecording,
+            hasLocks,
+            hasCameras,
             temperature: roomTemp
           }
         })
@@ -326,6 +352,96 @@ export default function DashboardPage() {
       setRooms(prevRooms =>
         prevRooms.map(r =>
           r.id === roomId ? { ...r, lightOn: !newState } : r
+        )
+      )
+    }
+  }
+
+  const toggleRoomLock = async (roomId: string) => {
+    setIsAnimating(roomId)
+    setTimeout(() => setIsAnimating(null), 500)
+    
+    const room = rooms.find(r => r.id === roomId)
+    if (!room) return
+    
+    const newState = !room.locked
+
+    setRooms(prevRooms =>
+      prevRooms.map(r =>
+        r.id === roomId ? { ...r, locked: newState } : r
+      )
+    )
+
+    const roomLocks = allDevices.filter(d => d.roomId === roomId && d.type === 'lock')
+    
+    if (roomLocks.length === 0) return
+
+    try {
+      await Promise.all(roomLocks.map(lock => {
+        const endpoint = newState ? 'lock' : 'unlock'
+        return fetch(`http://localhost:8080/api/locks/${lock.id}/${endpoint}`, {
+          method: 'POST'
+        })
+      }))
+
+      setAllDevices(prevDevices => 
+        prevDevices.map(d => {
+          if (d.roomId === roomId && d.type === 'lock') {
+            return { ...d, on: newState }
+          }
+          return d
+        })
+      )
+    } catch (error) {
+      console.error("Failed to toggle room locks:", error)
+      setRooms(prevRooms =>
+        prevRooms.map(r =>
+          r.id === roomId ? { ...r, locked: !newState } : r
+        )
+      )
+    }
+  }
+
+  const toggleRoomRecording = async (roomId: string) => {
+    setIsAnimating(roomId)
+    setTimeout(() => setIsAnimating(null), 500)
+    
+    const room = rooms.find(r => r.id === roomId)
+    if (!room) return
+    
+    const newState = !room.recording
+
+    setRooms(prevRooms =>
+      prevRooms.map(r =>
+        r.id === roomId ? { ...r, recording: newState } : r
+      )
+    )
+
+    const roomCameras = allDevices.filter(d => d.roomId === roomId && d.type === 'camera')
+    
+    if (roomCameras.length === 0) return
+
+    try {
+      await Promise.all(roomCameras.map(camera => {
+        const endpoint = newState ? 'start-recording' : 'stop-recording'
+        return fetch(`http://localhost:8080/api/cameras/${camera.id}/${endpoint}`, {
+          method: 'POST'
+        })
+      }))
+
+      setAllDevices(prevDevices => 
+        prevDevices.map(d => {
+          if (d.roomId === roomId && d.type === 'camera') {
+            return { ...d, recording: newState }
+          }
+          return d
+        })
+      )
+    } catch (error) {
+      console.error("Failed to toggle room cameras:", error)
+      setRooms(prevRooms =>
+        prevRooms.map(r =>
+          r.id === roomId ? { ...r, recording: !newState } : r
         )
       )
     }
@@ -489,22 +605,60 @@ export default function DashboardPage() {
                         Temperature: {room.temperature}
                       </p>
                     </div>
-                    <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                      <div className="flex items-center gap-2">
-                        <Lightbulb 
-                          className={`w-4 h-4 flex-shrink-0 transition-all duration-500 ${
-                            room.lightOn 
-                              ? "text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]" 
-                              : "text-gray-400"
-                          } ${isAnimating === room.id ? 'scale-125 rotate-12' : ''}`} 
+                    <div className="space-y-3 pt-2 border-t border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Lightbulb 
+                            className={`w-4 h-4 flex-shrink-0 transition-all duration-500 ${
+                              room.lightOn 
+                                ? "text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]" 
+                                : "text-gray-400"
+                            } ${isAnimating === room.id ? 'scale-125 rotate-12' : ''}`} 
+                          />
+                          <span className="text-xs sm:text-sm text-gray-700">Lights</span>
+                        </div>
+                        <Switch 
+                          checked={room.lightOn} 
+                          onCheckedChange={() => toggleRoomLight(room.id)}
+                          className="transition-all duration-300"
                         />
-                        <span className="text-xs sm:text-sm text-gray-700">Lights</span>
                       </div>
-                      <Switch 
-                        checked={room.lightOn} 
-                        onCheckedChange={() => toggleRoomLight(room.id)}
-                        className="transition-all duration-300"
-                      />
+
+                      {room.hasLocks && (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {room.locked ? (
+                              <LockKeyhole className="w-4 h-4 text-green-600 flex-shrink-0" />
+                            ) : (
+                              <LockOpen className="w-4 h-4 text-red-500 flex-shrink-0" />
+                            )}
+                            <span className="text-xs sm:text-sm text-gray-700">Locks</span>
+                          </div>
+                          <Switch 
+                            checked={room.locked} 
+                            onCheckedChange={() => toggleRoomLock(room.id)}
+                            className="transition-all duration-300 data-[state=checked]:bg-green-600"
+                          />
+                        </div>
+                      )}
+
+                      {room.hasCameras && (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {room.recording ? (
+                              <Video className="w-4 h-4 text-red-600 flex-shrink-0 animate-pulse" />
+                            ) : (
+                              <VideoOff className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            )}
+                            <span className="text-xs sm:text-sm text-gray-700">Cameras</span>
+                          </div>
+                          <Switch 
+                            checked={room.recording} 
+                            onCheckedChange={() => toggleRoomRecording(room.id)}
+                            className="transition-all duration-300 data-[state=checked]:bg-red-600"
+                          />
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
