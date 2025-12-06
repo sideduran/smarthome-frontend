@@ -1,6 +1,7 @@
 package com.smarthome.patterns.commands;
 
 import com.smarthome.config.InMemoryStateStore;
+import com.smarthome.domain.Camera;
 
 /**
  * Concrete Command (Command pattern).
@@ -24,6 +25,9 @@ public class ActivateSceneCommand implements SmartHomeCommand {
             scene.getDeviceIds().forEach(deviceId ->
                 store.getDevice(deviceId).ifPresent(device -> {
                     device.setOn(true);
+                    if (device instanceof Camera) {
+                        ((Camera) device).setRecording(true);
+                    }
                     store.updateDevice(device);
                 })
             );

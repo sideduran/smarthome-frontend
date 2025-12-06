@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useToast } from "@/components/ui/use-toast"
 import {
   Clock,
   Plus,
@@ -45,6 +46,7 @@ interface Scene {
 }
 
 export default function ScenesPage() {
+  const { toast } = useToast()
   const [scenes, setScenes] = useState<Scene[]>([])
   const [devices, setDevices] = useState<Device[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -150,11 +152,30 @@ export default function ScenesPage() {
   // Activate scene
   const handleActivate = async (id: string) => {
     try {
-      await fetch(`http://localhost:8080/api/scenes/${id}/activate`, { method: "POST" });
-      // Refresh scenes to get the updated 'active' status
-      fetchScenes();
+      const response = await fetch(`http://localhost:8080/api/scenes/${id}/activate`, { method: "POST" });
+      if (response.ok) {
+        // Refresh scenes to get the updated 'active' status
+        fetchScenes();
+        const scene = scenes.find((s) => s.id === id);
+        toast({
+          title: "Scene Activated",
+          description: `${scene?.name || "Scene"} has been activated successfully.`,
+          className: "bg-green-50 border-green-200 text-green-800",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to activate scene.",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("Error activating scene:", error);
+      toast({
+        title: "Error",
+        description: "Failed to activate scene due to a network error.",
+        variant: "destructive",
+      });
     }
   }
 
@@ -244,7 +265,12 @@ export default function ScenesPage() {
                         <CardTitle className="text-base sm:text-lg font-semibold text-gray-900">
                           {scene.name}
                         </CardTitle>
-                        <p className="text-sm text-gray-600">{scene.deviceIds.length} devices</p>
+                        <div className="text-sm text-gray-600 mt-1">
+                          {devices
+                            .filter(d => scene.deviceIds.includes(d.id))
+                            .map(d => d.name)
+                            .join(", ") || "No devices"}
+                        </div>
                       </div>
                     </div>
                   </div>
