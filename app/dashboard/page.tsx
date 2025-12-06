@@ -27,6 +27,7 @@ import {
   Clock,
   Plus
 } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 // Types matching Backend DTOs
 interface Automation {
@@ -108,6 +109,7 @@ const getGreeting = () => {
 
 export default function DashboardPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [rooms, setRooms] = useState<RoomDisplay[]>([])
   const [automations, setAutomations] = useState<Automation[]>([])
   const [activities, setActivities] = useState<ActivityLog[]>([])
@@ -275,7 +277,21 @@ export default function DashboardPage() {
     // Find all lights in this room
     const roomLights = allDevices.filter(d => d.roomId === roomId && d.type === 'light')
     
-    if (roomLights.length === 0) return
+    if (roomLights.length === 0) {
+      toast({
+        title: "No lights found",
+        description: `There are no lights in ${room.name} to switch on.`,
+        variant: "destructive",
+      })
+      
+      // Revert the optimistic update if no lights found
+      setRooms(prevRooms =>
+        prevRooms.map(r =>
+          r.id === roomId ? { ...r, lightOn: !newState } : r
+        )
+      )
+      return
+    }
 
     try {
       // Send requests to backend for each light
