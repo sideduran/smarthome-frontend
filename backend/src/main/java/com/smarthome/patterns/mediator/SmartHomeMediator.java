@@ -266,6 +266,35 @@ public class SmartHomeMediator {
         SmartHomeCommand command = new SetSecurityStatusCommand("disarmed");
         command.execute();
     }
+
+    // --- Automation CRUD operations ---
+
+    public Collection<Automation> listAutomations() {
+        return store.getAutomations();
+    }
+
+    public Optional<Automation> getAutomation(String id) {
+        return store.getAutomation(id);
+    }
+
+    public void createAutomation(Automation automation) {
+        SmartHomeCommand command = new CreateAutomationCommand(automation);
+        command.execute();
+    }
+
+    public void updateAutomation(Automation automation) {
+        SmartHomeCommand command = new UpdateAutomationCommand(automation);
+        command.execute();
+    }
+
+    public boolean deleteAutomation(String id) {
+        if (store.getAutomation(id).isPresent()) {
+            SmartHomeCommand command = new DeleteAutomationCommand(id);
+            command.execute();
+            return true;
+        }
+        return false;
+    }
 }
 
 

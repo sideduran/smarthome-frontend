@@ -36,6 +36,7 @@ public class InMemoryStateStore {
     private final Map<String, Device> devices = new ConcurrentHashMap<>();
     private final Map<String, Scene> scenes = new ConcurrentHashMap<>();
     private final Map<String, Room> rooms = new ConcurrentHashMap<>();
+    private final Map<String, Automation> automations = new ConcurrentHashMap<>();
     private String securityStatus = "disarmed";
 
     private void bootstrap() {
@@ -170,6 +171,28 @@ public class InMemoryStateStore {
 
     public void setSecurityStatus(String securityStatus) {
         this.securityStatus = securityStatus;
+    }
+
+    // --- Automation CRUD operations ---
+
+    public Collection<Automation> getAutomations() {
+        return automations.values();
+    }
+
+    public Optional<Automation> getAutomation(String id) {
+        return Optional.ofNullable(automations.get(id));
+    }
+
+    public void addAutomation(Automation automation) {
+        automations.put(automation.getId(), automation);
+    }
+
+    public void updateAutomation(Automation automation) {
+        automations.put(automation.getId(), automation);
+    }
+
+    public boolean deleteAutomation(String id) {
+        return automations.remove(id) != null;
     }
 }
 

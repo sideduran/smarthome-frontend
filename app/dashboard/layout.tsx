@@ -4,12 +4,13 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Home, Lightbulb, Zap, Shield, Menu, X } from "lucide-react"
+import { Home, Lightbulb, Zap, Shield, Menu, X, Calendar } from "lucide-react"
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Devices", href: "/dashboard/devices", icon: Lightbulb },
-  { name: "Automations", href: "/dashboard/automations", icon: Zap },
+  { name: "Automations", href: "/dashboard/automations", icon: Calendar },
+  { name: "Scenes", href: "/dashboard/scenes", icon: Zap },
   { name: "Security", href: "/dashboard/security", icon: Shield },
 ]
 

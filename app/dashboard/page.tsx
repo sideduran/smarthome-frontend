@@ -365,8 +365,19 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           {/* Upcoming Automations */}
           <section className="animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '400ms', animationFillMode: 'backwards' }}>
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Upcoming Automations</h2>
-            <Card className="bg-white hover:shadow-lg transition-shadow duration-300">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900">Upcoming Automations</h2>
+              <button 
+                onClick={() => router.push("/dashboard/automations")}
+                className="text-xs sm:text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+              >
+                View All
+              </button>
+            </div>
+            <Card 
+              className="bg-white hover:shadow-lg transition-shadow duration-300 cursor-pointer"
+              onClick={() => router.push("/dashboard/automations")}
+            >
               <CardContent className="p-4 sm:p-6">
                 <div className="space-y-3">
                   {automations.map((automation, index) => (
