@@ -151,12 +151,22 @@ export default function ScenesPage() {
 
   // Activate scene
   const handleActivate = async (id: string) => {
+    const scene = scenes.find((s) => s.id === id);
+    
+    if (scene && isSceneActive(scene)) {
+      toast({
+        title: "Already Active",
+        description: `${scene.name} is already active.`,
+        className: "bg-blue-50 border-blue-200 text-blue-800",
+      });
+      return;
+    }
+
     try {
       const response = await fetch(`http://localhost:8080/api/scenes/${id}/activate`, { method: "POST" });
       if (response.ok) {
         // Refresh scenes to get the updated 'active' status
         fetchScenes();
-        const scene = scenes.find((s) => s.id === id);
         toast({
           title: "Scene Activated",
           description: `${scene?.name || "Scene"} has been activated successfully.`,

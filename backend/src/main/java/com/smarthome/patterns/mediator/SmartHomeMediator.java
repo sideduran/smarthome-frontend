@@ -308,6 +308,17 @@ public class SmartHomeMediator {
 
     public boolean deleteScene(String sceneId) {
         if (store.getScene(sceneId).isPresent()) {
+            // Find and delete related automations
+            List<String> automationIdsToDelete = store.getAutomations().stream()
+                .filter(automation -> automation.getActions().stream()
+                    .anyMatch(action -> "SCENE".equals(action.getType()) && sceneId.equals(action.getTargetId())))
+                .map(Automation::getId)
+                .collect(Collectors.toList());
+
+            for (String automationId : automationIdsToDelete) {
+                deleteAutomation(automationId);
+            }
+
             SmartHomeCommand command = new DeleteSceneCommand(sceneId);
             command.execute();
             return true;
