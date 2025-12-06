@@ -5,7 +5,18 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Shield, Lock, Unlock, Activity, AlertCircle, Clock, Video, VideoOff } from "lucide-react"
+import { 
+  Shield, 
+  Lock, 
+  Unlock, 
+  Activity, 
+  AlertCircle, 
+  Clock, 
+  Video, 
+  VideoOff,
+  ChevronLeft,
+  ChevronRight
+} from "lucide-react"
 
 // Type definitions
 type SecurityStatus = "armed" | "disarmed"
@@ -28,22 +39,35 @@ interface SecurityAlert {
   type: "info" | "warning"
 }
 
-// Mock alerts (keeping as mock for now)
-const initialAlerts: SecurityAlert[] = [
-  { id: "1", time: "18:32", message: "Front Door unlocked (by You)", type: "info" },
-  { id: "2", time: "18:10", message: "Motion detected in Entrance", type: "warning" },
-  { id: "3", time: "17:45", message: "Back Door locked (by You)", type: "info" },
-  { id: "4", time: "16:20", message: "Security system armed", type: "info" },
-]
+interface ActivityLog {
+  id: string
+  timestamp: string
+  deviceName: string
+  action: string
+  details: string
+  iconType: string
+}
 
 export default function SecurityPage() {
   const [securityStatus, setSecurityStatus] = useState<SecurityStatus>("disarmed")
   const [devices, setDevices] = useState<SecurityDevice[]>([])
+  const [alerts, setAlerts] = useState<SecurityAlert[]>([])
   const [lastChanged] = useState("18:20")
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 5
+  const totalPages = Math.ceil(alerts.length / itemsPerPage)
+  
+  const currentAlerts = alerts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
 
   useEffect(() => {
     fetchSecurityStatus();
     fetchDevices();
+    fetchAlerts();
   }, []);
 
   const fetchSecurityStatus = async () => {
@@ -79,6 +103,31 @@ export default function SecurityPage() {
       }
     } catch (error) {
       console.error("Failed to fetch devices:", error);
+    }
+  };
+
+  const fetchAlerts = async () => {
+    try {
+      const res = await fetch("http://localhost:8080/api/activities");
+      if (res.ok) {
+        const activities: ActivityLog[] = await res.json();
+        
+        // Filter for security related activities (LOCK, SECURITY, CAMERA)
+        const securityActivities = activities.filter(a => 
+          ["LOCK", "SECURITY", "CAMERA"].includes(a.iconType)
+        );
+
+        const mappedAlerts: SecurityAlert[] = securityActivities.map(a => ({
+          id: a.id,
+          time: a.timestamp,
+          message: a.details, // Using details as the main message
+          type: a.details.toLowerCase().includes("motion") || a.details.toLowerCase().includes("alarm") ? "warning" : "info"
+        }));
+
+        setAlerts(mappedAlerts);
+      }
+    } catch (error) {
+      console.error("Failed to fetch alerts:", error);
     }
   };
 
@@ -130,6 +179,7 @@ export default function SecurityPage() {
     try {
       await fetch(`http://localhost:8080/api/locks/${deviceId}/${action}`, { method: "POST" });
       fetchSecurityStatus();
+      fetchAlerts(); // Refresh alerts
     } catch (error) {
       console.error("Failed to toggle lock:", error);
       fetchDevices(); // Revert
@@ -153,6 +203,7 @@ export default function SecurityPage() {
     try {
       await fetch(`http://localhost:8080/api/cameras/${deviceId}/${action}`, { method: "POST" });
       fetchSecurityStatus();
+      fetchAlerts(); // Refresh alerts
     } catch (error) {
       console.error("Failed to toggle recording:", error);
       fetchDevices(); // Revert
@@ -377,9 +428,12 @@ export default function SecurityPage() {
             <Card className="bg-white">
               <CardContent className="p-0">
                 <div className="divide-y divide-gray-100">
-                  {initialAlerts.map((alert, index) => (
+                  {currentAlerts.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500 text-sm">No recent alerts</div>
+                  ) : (
+                    currentAlerts.map((alert, index) => (
                     <div
-                      key={alert.id}
+                      key={alert.id || index}
                       className="flex items-start gap-4 p-4 hover:bg-gray-50 transition-colors animate-in fade-in slide-in-from-left-4"
                       style={{
                         animationDelay: `${index * 50}ms`,
@@ -402,8 +456,38 @@ export default function SecurityPage() {
                         <p className="text-xs text-gray-500 mt-1">{alert.time}</p>
                       </div>
                     </div>
-                  ))}
+                  ))
+                  )}
                 </div>
+                
+                {/* Pagination Controls */}
+                {alerts.length > itemsPerPage && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+                    <p className="text-xs text-gray-500">
+                      Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, alerts.length)} of {alerts.length} alerts
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </section>

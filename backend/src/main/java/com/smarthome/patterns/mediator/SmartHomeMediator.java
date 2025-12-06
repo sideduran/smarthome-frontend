@@ -8,7 +8,10 @@ import com.smarthome.patterns.commands.ActivateSceneCommand;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Mediator pattern example.
@@ -22,6 +25,33 @@ import java.util.stream.Collectors;
 public class SmartHomeMediator {
 
     private final InMemoryStateStore store = InMemoryStateStore.getInstance();
+
+    // --- Helper for logging ---
+    private void logActivity(String deviceId, String action, String details, String iconType) {
+        String deviceName = "Unknown Device";
+        if (deviceId != null) {
+            Optional<Device> device = store.getDevice(deviceId);
+            if (device.isPresent()) {
+                deviceName = device.get().getName();
+            } else if (deviceId.equals("security-system")) {
+                deviceName = "Security System";
+            } else {
+                 Optional<Scene> scene = store.getScene(deviceId);
+                 if (scene.isPresent()) deviceName = scene.get().getName();
+            }
+        }
+        
+        String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
+        ActivityLog log = new ActivityLog(
+                UUID.randomUUID().toString(),
+                time,
+                deviceName,
+                action,
+                details,
+                iconType
+        );
+        store.addActivityLog(log);
+    }
 
     // --- Device CRUD operations ---
 
@@ -60,11 +90,13 @@ public class SmartHomeMediator {
     public void turnOnLight(String deviceId) {
         SmartHomeCommand command = new TurnOnLightCommand(deviceId);
         command.execute();
+        logActivity(deviceId, "turned on", "Light turned on", "LIGHT");
     }
 
     public void turnOffLight(String deviceId) {
         SmartHomeCommand command = new TurnOffLightCommand(deviceId);
         command.execute();
+        logActivity(deviceId, "turned off", "Light turned off", "LIGHT");
     }
 
     public void increaseTargetHeat(String deviceId) {
@@ -90,16 +122,19 @@ public class SmartHomeMediator {
     public void setTargetHeat(String deviceId, double targetTemperature) {
         SmartHomeCommand command = new SetTargetHeatCommand(deviceId, targetTemperature);
         command.execute();
+        logActivity(deviceId, "set to " + targetTemperature + "°C", "Thermostat adjusted", "THERMOSTAT");
     }
 
     public void lock(String deviceId) {
         SmartHomeCommand command = new LockCommand(deviceId);
         command.execute();
+        logActivity(deviceId, "locked", "Door locked", "LOCK");
     }
 
     public void unlock(String deviceId) {
         SmartHomeCommand command = new UnlockCommand(deviceId);
         command.execute();
+        logActivity(deviceId, "unlocked", "Door unlocked", "LOCK");
         checkAndDisarmIfAllSafe();
     }
 
@@ -249,6 +284,7 @@ public class SmartHomeMediator {
     public void activateScene(String sceneId) {
         SmartHomeCommand command = new ActivateSceneCommand(sceneId);
         command.execute();
+        logActivity(sceneId, "activated", "Scene activated", "SCENE");
     }
 
     // --- Security System operations ---
@@ -260,11 +296,13 @@ public class SmartHomeMediator {
     public void armSecuritySystem() {
         SmartHomeCommand command = new SetSecurityStatusCommand("armed");
         command.execute();
+        logActivity("security-system", "armed", "System armed", "SECURITY");
     }
 
     public void disarmSecuritySystem() {
         SmartHomeCommand command = new SetSecurityStatusCommand("disarmed");
         command.execute();
+        logActivity("security-system", "disarmed", "System disarmed", "SECURITY");
     }
 
     // --- Automation CRUD operations ---

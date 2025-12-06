@@ -37,6 +37,7 @@ public class InMemoryStateStore {
     private final Map<String, Scene> scenes = new ConcurrentHashMap<>();
     private final Map<String, Room> rooms = new ConcurrentHashMap<>();
     private final Map<String, Automation> automations = new ConcurrentHashMap<>();
+    private final List<ActivityLog> activityLogs = Collections.synchronizedList(new ArrayList<>());
     private String securityStatus = "disarmed";
 
     private void bootstrap() {
@@ -193,6 +194,26 @@ public class InMemoryStateStore {
 
     public boolean deleteAutomation(String id) {
         return automations.remove(id) != null;
+    }
+
+    // --- Activity Log operations ---
+
+    public List<ActivityLog> getActivityLogs() {
+        // Return a copy or unmodifiable view to avoid concurrent modification issues during iteration by callers,
+        // but for this simple example, returning the list is fine (it is synchronized).
+        // A better approach for a "recent" list is to reverse it or limit it.
+        // Let's return a copy to be safe.
+        synchronized (activityLogs) {
+            return new ArrayList<>(activityLogs);
+        }
+    }
+
+    public void addActivityLog(ActivityLog log) {
+        activityLogs.add(0, log); // Add to the beginning to keep it sorted by newest
+        // Optional: Limit size to keep memory usage low
+        if (activityLogs.size() > 50) {
+            activityLogs.remove(activityLogs.size() - 1);
+        }
     }
 }
 
